@@ -1,18 +1,21 @@
-pub fn find<T: Eq, E>(
+pub fn find<T: Ord, E>(
     lookup: impl Fn(i64) -> Result<T, E>,
     target: &T,
-    lower_idx: i64, // inclusive
-    upper_idx: i64, // inclusive
+    mut lower_idx: i64, // inclusive
+    mut upper_idx: i64, // inclusive
 ) -> Result<Option<T>, E> {
-    let lower = lookup(lower_idx)?;
-    let higher = lookup(upper_idx)?;
-    if lower == *target {
-        Ok(Some(lower))
-    } else if higher == *target {
-        Ok(Some(higher))
-    } else {
-        Ok(None)
+    while lower_idx <= upper_idx {
+        let idx = (lower_idx + upper_idx) / 2;
+        let val = lookup(idx)?;
+        if val < *target {
+            lower_idx = idx + 1;
+        } else if val > *target {
+            upper_idx = idx - 1;
+        } else {
+            return Ok(Some(val));
+        }
     }
+    Ok(None)
 }
 
 #[cfg(test)]
@@ -124,6 +127,44 @@ mod tests {
         assert_matches!(
             find(new_lookup(&[0, 1]), &1, 0, 0),
             Ok(None)
+        );
+    }
+
+    /* LONGER ARRAYS */
+
+    #[test]
+    fn can_find_element_in_three_element_array() {
+        assert_matches!(
+            find(new_lookup(&[0, 1, 2]), &0, 0, 3),
+            Ok(Some(0))
+        );
+        assert_matches!(
+            find(new_lookup(&[0, 1, 2]), &1, 0, 3),
+            Ok(Some(1))
+        );
+        assert_matches!(
+            find(new_lookup(&[0, 1, 2]), &2, 0, 3),
+            Ok(Some(2))
+        );
+    }
+
+    #[test]
+    fn can_find_element_in_four_element_array() {
+        assert_matches!(
+            find(new_lookup(&[0, 1, 2, 3]), &0, 0, 4),
+            Ok(Some(0))
+        );
+        assert_matches!(
+            find(new_lookup(&[0, 1, 2, 3]), &1, 0, 4),
+            Ok(Some(1))
+        );
+        assert_matches!(
+            find(new_lookup(&[0, 1, 2, 3]), &2, 0, 4),
+            Ok(Some(2))
+        );
+        assert_matches!(
+            find(new_lookup(&[0, 1, 2, 3]), &3, 0, 4),
+            Ok(Some(3))
         );
     }
 }
