@@ -1,20 +1,32 @@
+#[derive(Clone)]
 pub enum Snap {
     Downwards, Upwards,
 }
 
+pub struct FindOrdResult {
+    pub value: bool,
+    pub snap: Option<Snap>,
+}
+
 pub trait FindOrd<T> {
-    fn lt(&self, t: &T) -> bool;
-    fn gt(&self, t: &T) -> bool;
+    fn lt(&self, t: &T) -> FindOrdResult;
+    fn gt(&self, t: &T) -> FindOrdResult;
 }
 
 // Let all PartialOrd types (of self) trivially implement FindOrd.
 impl<T: PartialOrd<T>> FindOrd<T> for T {
-    fn lt(&self, t: &T) -> bool {
-        self.lt(t)
+    fn lt(&self, t: &T) -> FindOrdResult {
+        FindOrdResult {
+            value: self.lt(t),
+            snap: None,
+        }
     }
 
-    fn gt(&self, t: &T) -> bool {
-        self.gt(t)
+    fn gt(&self, t: &T) -> FindOrdResult {
+        FindOrdResult {
+            value: self.gt(t),
+            snap: None,
+        }
     }
 }
 
@@ -42,26 +54,29 @@ pub fn find<T, E>(
     target: &impl FindOrd<T>,
     mut lower_idx: i64, // inclusive
     mut upper_idx: i64, // inclusive
-    snap: Option<Snap>,
 ) -> Result<FindResult<T>, E> {
     let mut res = None;
     while lower_idx <= upper_idx {
         let idx = (lower_idx + upper_idx) / 2;
         let val = lookup(idx)?;
-        if target.gt(&val) { // val < target
-            if let Some(Snap::Downwards) = snap {
+        let is_val_before_target = target.gt(&val);
+        if is_val_before_target.value { // val < target
+            if let Some(Snap::Downwards) = is_val_before_target.snap {
                 res = Some(Element { value: val, index: idx });
             }
             lower_idx = idx + 1;
-        } else if target.lt(&val) { // val > target
-            if let Some(Snap::Upwards) = snap {
+            continue;
+        }
+        let is_val_after_target = target.lt(&val);
+        if is_val_after_target.value { // val > target
+            if let Some(Snap::Upwards) = is_val_after_target.snap {
                 res = Some(Element { value: val, index: idx });
             }
             upper_idx = idx - 1;
-        } else {
-            res = Some(Element { value: val, index: idx });
-            break;
+            continue;
         }
+        res = Some(Element { value: val, index: idx });
+        break;
     }
     Ok(FindResult {
         element: res,
@@ -73,7 +88,7 @@ pub fn find<T, E>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_util::helpers::new_lookup;
+    use crate::test_util::helpers::*;
     use assert_matches::assert_matches; // use stdlib version once it's stable (https://github.com/rust-lang/rust/issues/82775)
 
     fn find_value<T, E>(
@@ -81,9 +96,8 @@ mod tests {
         target: &impl FindOrd<T>,
         lower_idx: i64, // inclusive
         upper_idx: i64, // inclusive
-        snap: Option<Snap>,
     ) -> Result<Option<T>, E> {
-        let r = find(&lookup, target, lower_idx, upper_idx, snap)?;
+        let r = find(&lookup, target, lower_idx, upper_idx)?;
         Ok(r.element.map(|v| v.value))
     }
 
@@ -92,7 +106,7 @@ mod tests {
     #[test]
     fn lookup_error_is_propagated() {
         assert_matches!(
-            find_value(|_| Err("forget it"), &0, 0, 0, None),
+            find_value(|_| Err("forget it"), &0, 0, 0),
             Err(msg) if msg == "forget it"
         );
     }
@@ -100,7 +114,7 @@ mod tests {
     #[test]
     fn finding_in_empty_array_fails() {
         assert_matches!(
-            find_value(new_lookup(&[]), &0, 0, 0, None),
+            find_value(new_lookup(&[]), &0, 0, 0),
             Err(msg) if msg == "index 0 out of bounds"
         );
     }
@@ -110,7 +124,7 @@ mod tests {
     #[test]
     fn can_find_element_present_in_singleton_array() {
         assert_matches!(
-            find_value(new_lookup(&[0]), &0, 0, 0, None),
+            find_value(new_lookup(&[0]), &0, 0, 0),
             Ok(Some(0))
         );
     }
@@ -118,7 +132,7 @@ mod tests {
     #[test]
     fn cannot_find_element_not_present_in_singleton_array() {
         assert_matches!(
-            find_value(new_lookup(&[0]), &1, 0, 0, None),
+            find_value(new_lookup(&[0]), &1, 0, 0),
             Ok(None)
         );
     }
@@ -128,11 +142,11 @@ mod tests {
     #[test]
     fn can_find_elements_in_two_element_array() {
         assert_matches!(
-            find_value(new_lookup(&[0, 1]), &0, 0, 1, None),
+            find_value(new_lookup(&[0, 1]), &0, 0, 1),
             Ok(Some(0))
         );
         assert_matches!(
-            find_value(new_lookup(&[0, 1]), &1, 0, 1, None),
+            find_value(new_lookup(&[0, 1]), &1, 0, 1),
             Ok(Some(1))
         );
     }
@@ -147,7 +161,7 @@ mod tests {
         ];
         for t in ts {
             assert_matches!(
-                find_value(new_lookup(arr), t, 0, 1, None),
+                find_value(new_lookup(arr), t, 0, 1),
                 Ok(None)
             );
         }
@@ -158,11 +172,11 @@ mod tests {
     #[test]
     fn can_find_element_in_singleton_subset_of_two_element_array() {
         assert_matches!(
-            find_value(new_lookup(&[0, 1]), &0, 0, 0, None),
+            find_value(new_lookup(&[0, 1]), &0, 0, 0),
             Ok(Some(0))
         );
         assert_matches!(
-            find_value(new_lookup(&[0, 1]), &1, 1, 1, None),
+            find_value(new_lookup(&[0, 1]), &1, 1, 1),
             Ok(Some(1))
         );
     }
@@ -170,11 +184,11 @@ mod tests {
     #[test]
     fn cannot_find_element_not_present_in_singleton_subset_of_two_element_array() {
         assert_matches!(
-            find_value(new_lookup(&[0, 1]), &0, 1, 1, None),
+            find_value(new_lookup(&[0, 1]), &0, 1, 1),
             Ok(None)
         );
         assert_matches!(
-            find_value(new_lookup(&[0, 1]), &1, 0, 0, None),
+            find_value(new_lookup(&[0, 1]), &1, 0, 0),
             Ok(None)
         );
     }
@@ -186,27 +200,29 @@ mod tests {
         let arr = &[0, 1, 2];
         for v in arr {
             assert_matches!(
-                find_value(new_lookup(arr), v, 0, 2, None),
+                find_value(new_lookup(arr), v, 0, 2),
                 Ok(Some(r)) if r == *v
             );
         }
     }
 
+    /* USING SNAPPING */
+
     #[test]
     fn can_find_element_in_four_element_array_using_any_snap() {
-        let arr = &[0, 1, 2, 3];
+        let arr = [0, 1, 2, 3];
         for v in arr {
             assert_matches!(
-                find_value(new_lookup(arr), v, 0, 3, None),
-                Ok(Some(r)) if r == *v
+                find_value(new_lookup(&arr), &v, 0, 3),
+                Ok(Some(r)) if r == v
             );
             assert_matches!(
-                find_value(new_lookup(arr), v, 0, 3, Some(Snap::Downwards)),
-                Ok(Some(r)) if r == *v
+                find_value(new_lookup(&arr), &with_snap(v, Some(Snap::Downwards)), 0, 3),
+                Ok(Some(r)) if r == v
             );
             assert_matches!(
-                find_value(new_lookup(arr), v, 0, 3, Some(Snap::Upwards)),
-                Ok(Some(r)) if r == *v
+                find_value(new_lookup(&arr), &with_snap(v, Some(Snap::Upwards)), 0, 3),
+                Ok(Some(r)) if r == v
             );
         }
     }
@@ -214,7 +230,7 @@ mod tests {
     #[test]
     fn can_find_element_before_unmatched_target_using_backwards_snap() {
         assert_matches!(
-            find_value(new_lookup(&[0, 2]), &1, 0, 1, Some(Snap::Downwards)),
+            find_value(new_lookup(&[0, 2]), &with_snap(1, Some(Snap::Downwards)), 0, 1),
             Ok(Some(0))
         );
     }
@@ -222,7 +238,7 @@ mod tests {
     #[test]
     fn can_find_element_after_unmatched_target_using_forwards_snap() {
         assert_matches!(
-            find_value(new_lookup(&[0, 2]), &1, 0, 1, Some(Snap::Upwards)),
+            find_value(new_lookup(&[0, 2]), &with_snap(1, Some(Snap::Upwards)), 0, 1),
             Ok(Some(2))
         );
     }
@@ -230,7 +246,7 @@ mod tests {
     #[test]
     fn can_find_first_element_for_target_less_than_first_element_using_forwards_snap() {
         assert_matches!(
-            find_value(new_lookup(&[1, 2]), &0, 0, 1, Some(Snap::Upwards)),
+            find_value(new_lookup(&[1, 2]), &with_snap(0, Some(Snap::Upwards)), 0, 1),
             Ok(Some(1))
         );
     }
@@ -238,7 +254,7 @@ mod tests {
     #[test]
     fn can_find_last_element_for_target_greater_than_last_element_using_backwards_snap() {
         assert_matches!(
-            find_value(new_lookup(&[0, 1]), &2, 0, 1, Some(Snap::Downwards)),
+            find_value(new_lookup(&[0, 1]), &with_snap(2, Some(Snap::Downwards)), 0, 1),
             Ok(Some(1))
         );
     }
@@ -246,7 +262,7 @@ mod tests {
     #[test]
     fn cannot_find_element_before_target_less_than_first_element_using_backwards_snap() {
         assert_matches!(
-            find_value(new_lookup(&[1, 2]), &0, 0, 1, Some(Snap::Downwards)),
+            find_value(new_lookup(&[1, 2]), &with_snap(0, Some(Snap::Downwards)), 0, 1),
             Ok(None)
         );
     }
@@ -254,7 +270,7 @@ mod tests {
     #[test]
     fn cannot_find_element_after_target_greater_than_last_element_using_forwards_snap() {
         assert_matches!(
-            find_value(new_lookup(&[0, 1]), &2, 0, 1, Some(Snap::Upwards)),
+            find_value(new_lookup(&[0, 1]), &with_snap(2, Some(Snap::Upwards)), 0, 1),
             Ok(None)
         );
     }
