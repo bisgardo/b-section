@@ -3,29 +3,33 @@ pub enum Snap {
     Downwards, Upwards,
 }
 
-pub struct FindOrdResult {
-    pub value: bool,
-    pub snap: Option<Snap>,
+// TODO: Can name types/cases after what the comparisons represent?
+//       'True' case means that the value was not matches and that the search space has to be limited as a result.
+//       And the "snap" value in that case determines whether to store the value as a (temporary) result anyway.
+pub enum CmpResult {
+    True(Option<Snap>), False
 }
 
 pub trait FindOrd<T> {
-    fn lt(&self, t: &T) -> FindOrdResult;
-    fn gt(&self, t: &T) -> FindOrdResult;
+    fn lt(&self, t: &T) -> CmpResult;
+    fn gt(&self, t: &T) -> CmpResult;
 }
 
-// Let all PartialOrd types (of self) trivially implement FindOrd.
+/// Let all PartialOrd types (of self) trivially implement FindOrd.
 impl<T: PartialOrd<T>> FindOrd<T> for T {
-    fn lt(&self, t: &T) -> FindOrdResult {
-        FindOrdResult {
-            value: self.lt(t),
-            snap: None,
+    fn lt(&self, t: &T) -> CmpResult {
+        if self.lt(t) {
+            CmpResult::True(None)
+        } else {
+            CmpResult::False
         }
     }
 
-    fn gt(&self, t: &T) -> FindOrdResult {
-        FindOrdResult {
-            value: self.gt(t),
-            snap: None,
+    fn gt(&self, t: &T) -> CmpResult {
+        if self.gt(t) {
+            CmpResult::True(None)
+        } else {
+            CmpResult::False
         }
     }
 }
@@ -44,9 +48,9 @@ pub struct FindResult<T> {
     /// Value satisfying the limits.
     pub element: Option<Element<T>>,
     /// Index of last inspected value that is below the lower limit (or `lower_idx`).
-    pub lower_bound: i64,
+    pub last_lower_index: i64,
     /// Index of last inspected value that is above the upper limit (or `upper_idx`).
-    pub upper_bound: i64,
+    pub last_upper_index: i64,
 }
 
 pub fn find<T, E>(
@@ -59,29 +63,30 @@ pub fn find<T, E>(
     while lower_idx <= upper_idx {
         let idx = (lower_idx + upper_idx) / 2;
         let val = lookup(idx)?;
-        let is_val_before_target = target.gt(&val);
-        if is_val_before_target.value { // val < target
-            if let Some(Snap::Downwards) = is_val_before_target.snap {
+        if let CmpResult::True(snap) = target.gt(&val) {
+            // val < target
+            if let Some(Snap::Downwards) = snap {
                 res = Some(Element { value: val, index: idx });
             }
             lower_idx = idx + 1;
             continue;
         }
-        let is_val_after_target = target.lt(&val);
-        if is_val_after_target.value { // val > target
-            if let Some(Snap::Upwards) = is_val_after_target.snap {
+        if let CmpResult::True(snap) = target.lt(&val) {
+            // val > target
+            if let Some(Snap::Upwards) = snap {
                 res = Some(Element { value: val, index: idx });
             }
             upper_idx = idx - 1;
             continue;
         }
+        // val matches target
         res = Some(Element { value: val, index: idx });
         break;
     }
     Ok(FindResult {
         element: res,
-        lower_bound: lower_idx,
-        upper_bound: upper_idx,
+        last_lower_index: lower_idx,
+        last_upper_index: upper_idx,
     })
 }
 

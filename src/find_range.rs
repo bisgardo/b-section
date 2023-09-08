@@ -1,4 +1,4 @@
-use crate::find::{find, FindOrd, Element, FindOrdResult, FindResult};
+use crate::find::{find, FindOrd, Element, CmpResult, FindResult};
 
 struct FindOrdRange<'a, T> {
     lower: &'a dyn FindOrd<T>,
@@ -6,11 +6,11 @@ struct FindOrdRange<'a, T> {
 }
 
 impl<T> FindOrd<T> for FindOrdRange<'_, T> {
-    fn lt(&self, v: &T) -> FindOrdResult {
+    fn lt(&self, v: &T) -> CmpResult {
         self.upper.lt(v)
     }
 
-    fn gt(&self, v: &T) -> FindOrdResult {
+    fn gt(&self, v: &T) -> CmpResult {
         self.lower.gt(v)
     }
 }
@@ -22,7 +22,7 @@ pub fn find_range<T, E>(
     lower_idx: i64, // inclusive
     upper_idx: i64, // inclusive
 ) -> Result<(Option<Element<T>>, Option<Element<T>>), E> {
-    let FindResult { element, lower_bound, upper_bound } = find(
+    let FindResult { element, last_lower_index, last_upper_index } = find(
         lookup,
         &FindOrdRange { lower: lower_target, upper: upper_target },
         lower_idx,
@@ -34,14 +34,14 @@ pub fn find_range<T, E>(
             let lower_res = find(
                 lookup,
                 lower_target,
-                lower_bound,
+                last_lower_index,
                 index,
             )?;
             let upper_res = find(
                 lookup,
                 upper_target,
                 index,
-                upper_bound,
+                last_upper_index,
             )?;
             Ok((lower_res.element, upper_res.element))
         }

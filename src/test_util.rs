@@ -1,6 +1,6 @@
 #[cfg(test)]
 pub mod helpers {
-    use crate::find::{FindOrd, FindOrdResult, Snap};
+    use crate::find::{FindOrd, CmpResult, Snap};
 
     pub fn new_lookup<T: Clone>(arr: &[T]) -> impl Fn(i64) -> Result<T, String> + '_ {
         |idx| {
@@ -21,17 +21,19 @@ pub mod helpers {
     }
 
     impl<T: PartialOrd> FindOrd<T> for SnappingTarget<T> {
-        fn lt(&self, t: &T) -> FindOrdResult {
-            FindOrdResult {
-                value: &self.value < t,
-                snap: self.snap.clone(),
+        fn lt(&self, t: &T) -> CmpResult {
+            if &self.value < t {
+                CmpResult::True(self.snap.clone())
+            } else {
+                CmpResult::False
             }
         }
 
-        fn gt(&self, t: &T) -> FindOrdResult {
-            FindOrdResult {
-                value: &self.value > t,
-                snap: self.snap.clone(),
+        fn gt(&self, t: &T) -> CmpResult {
+            if &self.value > t {
+                CmpResult::True(self.snap.clone())
+            } else {
+                CmpResult::False
             }
         }
     }
