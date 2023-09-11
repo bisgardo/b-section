@@ -23,7 +23,7 @@ pub mod helpers {
     impl<T: PartialOrd> FindOrd<T> for SnappingTarget<T> {
         fn lt(&self, t: &T) -> CmpResult {
             if &self.value < t {
-                CmpResult::True(self.snap.clone())
+                CmpResult::True { keep: matches!(self.snap, Some(Snap::Upwards)) }
             } else {
                 CmpResult::False
             }
@@ -31,14 +31,14 @@ pub mod helpers {
 
         fn gt(&self, t: &T) -> CmpResult {
             if &self.value > t {
-                CmpResult::True(self.snap.clone())
+                CmpResult::True { keep: matches!(self.snap, Some(Snap::Downwards)) }
             } else {
                 CmpResult::False
             }
         }
     }
 
-    pub fn with_snap<T>(value: T, snap: Option<Snap>) -> SnappingTarget<T> {
-        SnappingTarget{value, snap}
+    pub fn with_snap<T>(value: T, snap: Snap) -> SnappingTarget<T> {
+        SnappingTarget { value, snap: Some(snap) }
     }
 }

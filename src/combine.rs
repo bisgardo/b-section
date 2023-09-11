@@ -1,4 +1,4 @@
-use crate::find::{CmpResult, FindOrd, Snap};
+use crate::find::{CmpResult, FindOrd};
 
 /// [FindOrd] that "matches" (i.e. inequality is [CmpResult::False]) if ANY of the combined [FindOrd]s say so.
 // TODO: Create variant with "all" semantics.
@@ -8,34 +8,31 @@ struct FindOrdCombinerAny<T> {
 
 impl<T> FindOrd<T> for FindOrdCombinerAny<T> {
     fn lt(&self, t: &T) -> CmpResult {
-        // Target is less than the value if all of the targets say so (i.e. it isn't if *any* of the targets say so).
-        // Default to snapping upwards (outwards) but snap downwards if any of the targets say so.
-        let mut snap = Snap::Upwards;
+        // Target is less than the value if it is according to all targets (i.e. it isn't if *any* of the targets say so).
+        // Default to keeping the candidate value but don't if any of the targets say we shouldn't.
+        let mut all_keep = true;
         for f in self.combined.iter() {
             match f.lt(t) {
                 CmpResult::False => return CmpResult::False,
-                CmpResult::True(s) =>
-                    if let Some(Snap::Downwards) = s {
-                        snap = Snap::Downwards;
-                    }
+                CmpResult::True { keep } => {
+                    all_keep &= keep
+                }
             }
         }
-        CmpResult::True(Some(snap))
+        CmpResult::True { keep: all_keep }
     }
 
     fn gt(&self, t: &T) -> CmpResult {
-        // Target is greater than the value if all of the targets say so (i.e. it isn't if *any of the targets say so).
-        // Default to snapping downwards (outwards) but snap upwards if any of the targets say so.
-        let mut snap = Snap::Downwards;
+        // Target is greater than the value if it is according to all targets (i.e. it isn't if *any* of the targets say so).
+        // Default to keeping the candidate value but don't if any of the targets say we shouldn't.
+        let mut all_keep = true;
         for f in self.combined.iter() {
             match f.gt(t) {
                 CmpResult::False => return CmpResult::False,
-                CmpResult::True(s) =>
-                    if let Some(Snap::Upwards) = s {
-                        snap = Snap::Upwards;
-                    }
+                CmpResult::True { keep } =>
+                    all_keep &= keep
             }
         }
-        CmpResult::True(Some(snap))
+        CmpResult::True { keep: all_keep }
     }
 }
