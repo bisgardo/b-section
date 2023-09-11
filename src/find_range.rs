@@ -17,12 +17,14 @@ impl<T> FindOrd<T> for FindOrdRange<'_, T> {
 
 pub fn find_range<T, E>(
     lookup: &impl Fn(i64) -> Result<T, E>,
-    lower_target: &impl FindOrd<T>,
-    upper_target: &impl FindOrd<T>,
+    lower_target: &dyn FindOrd<T>,
+    upper_target: &dyn FindOrd<T>,
     lower_idx: i64, // inclusive
     upper_idx: i64, // inclusive
 ) -> Result<(Option<Element<T>>, Option<Element<T>>), E> {
-    let FindResult { element, last_lower_index, last_upper_index } = find(
+    // TODO: Passing the target's snap in this call may result in an element that's outside the limits of last_lower/upper_idx (if no actual matching element is found).
+    //       Should we "erase" the snap to avoid this?
+    let FindResult { element, last_lower_idx, last_upper_idx } = find(
         lookup,
         &FindOrdRange { lower: lower_target, upper: upper_target },
         lower_idx,
@@ -31,17 +33,18 @@ pub fn find_range<T, E>(
     match element {
         None => Ok((None, None)), // no value found in range
         Some(Element { index, .. }) => {
+            // TODO: If value isn't found, the element before/after last_lower/upper_idx still works if the appropriate inequality snaps out!
             let lower_res = find(
                 lookup,
                 lower_target,
-                last_lower_index,
+                last_lower_idx,
                 index,
             )?;
             let upper_res = find(
                 lookup,
                 upper_target,
                 index,
-                last_upper_index,
+                last_upper_idx,
             )?;
             Ok((lower_res.element, upper_res.element))
         }
