@@ -16,6 +16,15 @@ pub enum CmpResult {
     False,
 }
 
+impl CmpResult {
+    pub(crate) fn no_keep(&self) -> CmpResult {
+        match self {
+            CmpResult::False => CmpResult::False,
+            CmpResult::True { .. } => CmpResult::True { keep: false },
+        }
+    }
+}
+
 pub trait FindOrd<T> {
     fn lt(&self, t: &T) -> CmpResult;
     fn gt(&self, t: &T) -> CmpResult;
@@ -42,8 +51,8 @@ impl<T: PartialOrd<T>> FindOrd<T> for T {
 
 #[derive(Debug)]
 pub struct Element<T> {
-    pub value: T,
-    pub index: i64,
+    pub val: T,
+    pub idx: i64,
 }
 
 /// Result of searching for a value within the specified limits.
@@ -73,7 +82,7 @@ pub fn find<T, E>(
         if let CmpResult::True { keep } = target.gt(&val) {
             // val < target
             if keep {
-                res = Some(Element { value: val, index: idx });
+                res = Some(Element { val, idx });
             }
             lower_idx = idx + 1;
             continue;
@@ -81,13 +90,13 @@ pub fn find<T, E>(
         if let CmpResult::True { keep } = target.lt(&val) {
             // val > target
             if keep {
-                res = Some(Element { value: val, index: idx });
+                res = Some(Element { val, idx });
             }
             upper_idx = idx - 1;
             continue;
         }
         // val matches target
-        res = Some(Element { value: val, index: idx });
+        res = Some(Element { val, idx });
         break;
     }
     Ok(FindResult {
@@ -110,7 +119,7 @@ mod tests {
         upper_idx: i64, // inclusive
     ) -> Result<Option<T>, E> {
         let r = find(&lookup, target, lower_idx, upper_idx)?;
-        Ok(r.element.map(|v| v.value))
+        Ok(r.element.map(|v| v.val))
     }
 
     /* MISC */
@@ -229,11 +238,11 @@ mod tests {
                 Ok(Some(r)) if r == v
             );
             assert_matches!(
-                find_value(new_lookup(&arr), &with_snap(v, Some(Snap::Downwards)), 0, 3),
+                find_value(new_lookup(&arr), &with_snap(v, Snap::Downwards), 0, 3),
                 Ok(Some(r)) if r == v
             );
             assert_matches!(
-                find_value(new_lookup(&arr), &with_snap(v, Some(Snap::Upwards)), 0, 3),
+                find_value(new_lookup(&arr), &with_snap(v, Snap::Upwards), 0, 3),
                 Ok(Some(r)) if r == v
             );
         }
@@ -242,7 +251,7 @@ mod tests {
     #[test]
     fn can_find_element_before_unmatched_target_using_backwards_snap() {
         assert_matches!(
-            find_value(new_lookup(&[0, 2]), &with_snap(1, Some(Snap::Downwards)), 0, 1),
+            find_value(new_lookup(&[0, 2]), &with_snap(1, Snap::Downwards), 0, 1),
             Ok(Some(0))
         );
     }
@@ -250,7 +259,7 @@ mod tests {
     #[test]
     fn can_find_element_after_unmatched_target_using_forwards_snap() {
         assert_matches!(
-            find_value(new_lookup(&[0, 2]), &with_snap(1, Some(Snap::Upwards)), 0, 1),
+            find_value(new_lookup(&[0, 2]), &with_snap(1, Snap::Upwards), 0, 1),
             Ok(Some(2))
         );
     }
@@ -258,7 +267,7 @@ mod tests {
     #[test]
     fn can_find_first_element_for_target_less_than_first_element_using_forwards_snap() {
         assert_matches!(
-            find_value(new_lookup(&[1, 2]), &with_snap(0, Some(Snap::Upwards)), 0, 1),
+            find_value(new_lookup(&[1, 2]), &with_snap(0, Snap::Upwards), 0, 1),
             Ok(Some(1))
         );
     }
@@ -266,7 +275,7 @@ mod tests {
     #[test]
     fn can_find_last_element_for_target_greater_than_last_element_using_backwards_snap() {
         assert_matches!(
-            find_value(new_lookup(&[0, 1]), &with_snap(2, Some(Snap::Downwards)), 0, 1),
+            find_value(new_lookup(&[0, 1]), &with_snap(2, Snap::Downwards), 0, 1),
             Ok(Some(1))
         );
     }
@@ -274,7 +283,7 @@ mod tests {
     #[test]
     fn cannot_find_element_before_target_less_than_first_element_using_backwards_snap() {
         assert_matches!(
-            find_value(new_lookup(&[1, 2]), &with_snap(0, Some(Snap::Downwards)), 0, 1),
+            find_value(new_lookup(&[1, 2]), &with_snap(0, Snap::Downwards), 0, 1),
             Ok(None)
         );
     }
@@ -282,7 +291,7 @@ mod tests {
     #[test]
     fn cannot_find_element_after_target_greater_than_last_element_using_forwards_snap() {
         assert_matches!(
-            find_value(new_lookup(&[0, 1]), &with_snap(2, Some(Snap::Upwards)), 0, 1),
+            find_value(new_lookup(&[0, 1]), &with_snap(2, Snap::Upwards), 0, 1),
             Ok(None)
         );
     }

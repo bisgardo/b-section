@@ -3,5 +3,9 @@ name = "b-section"
 version = "0.0.0"
 edition = "2021"
 
-[dependencies]
+[dev-dependencies]
 assert_matches = "1"
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+lazy_static = "1"
+regex = "1.9"

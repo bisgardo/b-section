@@ -38,7 +38,7 @@ pub mod helpers {
         }
     }
 
-    pub fn with_snap<T>(value: T, snap: Option<Snap>) -> SnappingTarget<T> {
-        SnappingTarget { value, snap }
+    pub fn with_snap<T>(value: T, snap: Snap) -> SnappingTarget<T> {
+        SnappingTarget { value, snap: Some(snap) }
     }
 }
