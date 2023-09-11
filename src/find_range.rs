@@ -23,6 +23,10 @@ pub fn find_range<T, E>(
     lower_idx: i64, // inclusive
     upper_idx: i64, // inclusive
 ) -> Result<(Option<Element<T>>, Option<Element<T>>), E> {
+    // TODO: Try the following:
+    //       - Don't erase snap from range target.
+    //       - Let 'find' store preliminary result also if the inequality *fails* - and collect *both* lower and higher.
+    //       Then if the range lookup fails, we *know* that we already both results (and possible one of them in other cases).
     let FindResult { element, last_lower_idx, last_upper_idx } = find(
         lookup,
         &FindOrdRange { lower: lower_target, upper: upper_target },
