@@ -17,7 +17,7 @@ pub enum CmpResult {
 }
 
 impl CmpResult {
-    pub(crate) fn no_keep(&self) -> CmpResult {
+    pub fn no_keep(&self) -> CmpResult {
         match self {
             CmpResult::False => CmpResult::False,
             CmpResult::True { .. } => CmpResult::True { keep: false },

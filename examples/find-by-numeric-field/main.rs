@@ -14,10 +14,8 @@ use crate::target::{Data, DataTarget, Target};
 #[derive(Parser, Debug)]
 struct Args {
     #[clap(long = "from", help = "Lower constraint.")]
-    // from: Vec<String>,
     from: String,
     #[clap(long = "to", help = "Upper constraint.")]
-    // to: Vec<String>,
     to: String,
 }
 
@@ -34,7 +32,7 @@ fn parse_stdin_records(s: String) -> Result<HashMap<String, f64>> {
 }
 
 
-pub fn new_lookup<'a>(datas: &'a Vec<Data>) -> impl Fn(i64) -> Result<Data> + 'a {
+pub fn new_lookup(datas: &Vec<Data>) -> impl Fn(i64) -> Result<Data> + '_ {
     |idx| {
         if idx < 0 {
             return Err(anyhow!("negative index {}", idx));
