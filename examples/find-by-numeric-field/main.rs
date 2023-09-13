@@ -4,8 +4,7 @@ mod pair;
 use b_section::find::Element;
 use b_section::find_range::find_range;
 use std::collections::HashMap;
-use std::io;
-use std::io::BufRead;
+use std::io::stdin;
 use anyhow::{anyhow, Context, Result};
 use clap::Parser;
 use crate::pair::{Op, Pair};
@@ -56,7 +55,7 @@ fn main() -> Result<()> {
 
     // Parse records from stdin.
     let datas =
-        io::BufReader::new(io::stdin())
+        stdin()
             .lines()
             .map(|l| parse_stdin_records(l?).context("cannot parse records on stdin"))
             .collect::<Result<Vec<Data>>>()?;
