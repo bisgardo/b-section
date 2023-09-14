@@ -10,9 +10,9 @@ impl<T, E> FindOrd<T, E> for FindOrdRange<'_, T, E> {
     fn cmp(&self, t: &T) -> Result<FindOrdering, E> {
         Ok(
             if let FindOrdering::ValAboveTarget { .. } = self.upper.cmp(t)? {
-                FindOrdering::ValAboveTarget { is_valid_res: false } // erasing 'keep_val'
+                FindOrdering::ValAboveTarget { is_valid_res: false } // erasing 'is_valid_res'
             } else if let FindOrdering::ValBelowTarget { .. } = self.lower.cmp(t)? {
-                FindOrdering::ValBelowTarget { is_valid_res: false } // erasing 'keep_val'
+                FindOrdering::ValBelowTarget { is_valid_res: false } // erasing 'is_valid_res'
             } else {
                 FindOrdering::ValMatchesTarget
             }
@@ -34,7 +34,7 @@ pub fn find_range<T, E>(
         upper_idx,
     )?;
     let (lower_upper_idx, upper_lower_idx) = match element {
-        None => (last_lower_idx, last_upper_idx),
+        None => (min(last_lower_idx, upper_idx), max(last_upper_idx, lower_idx)),
         Some(Element { idx, .. }) => (idx, idx),
     };
     // Possible optimization: If we can determine that the targets aren't using outwards snapping,
@@ -221,6 +221,48 @@ mod tests {
         assert_matches!(
             find_range(&new_lookup(arr), &1, &with_snap(1, Snap::Upwards), 0, arr.len() as i64 - 1),
             Ok((None, Some(u))) if u.val == 2
+        );
+    }
+
+    #[test]
+    fn below_element() {
+        let arr = &[0];
+        assert_matches!(
+            find_range(&new_lookup(arr), &-1, &-1, 0, arr.len() as i64 - 1),
+            Ok((None, None))
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &with_snap(-1, Snap::Upwards), &-1, 0, arr.len() as i64 - 1),
+            Ok((Some(l), None)) if l.val == 0
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &-1, &with_snap(-1, Snap::Upwards), 0, arr.len() as i64 - 1),
+            Ok((None, Some(u))) if u.val == 0
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &with_snap(-1, Snap::Upwards), &with_snap(-1, Snap::Upwards), 0, arr.len() as i64 - 1),
+            Ok((Some(l), Some(u))) if l.val == 0 && u.val == 0
+        );
+    }
+
+    #[test]
+    fn above_element() {
+        let arr = &[0];
+        assert_matches!(
+            find_range(&new_lookup(arr), &1, &1, 0, arr.len() as i64 - 1),
+            Ok((None, None))
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &with_snap(1, Snap::Downwards), &1, 0, arr.len() as i64 - 1),
+            Ok((Some(l), None)) if l.val == 0
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &1, &with_snap(1, Snap::Downwards), 0, arr.len() as i64 - 1),
+            Ok((None, Some(u))) if u.val == 0
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &with_snap(1, Snap::Downwards), &with_snap(1, Snap::Downwards), 0, arr.len() as i64 - 1),
+            Ok((Some(l), Some(u))) if l.val == 0 && u.val == 0
         );
     }
 }
