@@ -1,38 +1,38 @@
-use crate::find::{CmpResult, FindOrd};
+use crate::find::{FindOrd, FindOrdering};
 
 /// [FindOrd] that "matches" (i.e. inequality is [CmpResult::False]) if ANY of the combined [FindOrd]s say so.
 // TODO: Create variant with "all" semantics.
-struct FindOrdCombinerAny<T> {
-    combined: Vec<Box<dyn FindOrd<T>>>, // TODO use slice? And lifetime vs Box?
+struct FindOrdCombinerAny<T, E> {
+    combined: Vec<Box<dyn FindOrd<T, E>>>, // TODO use slice? And lifetime vs Box?
 }
 
-impl<T> FindOrd<T> for FindOrdCombinerAny<T> {
-    fn lt(&self, t: &T) -> CmpResult {
-        // Target is less than the value if it is according to all targets (i.e. it isn't if *any* of the targets say so).
-        // Default to keeping the candidate value but don't if any of the targets say we shouldn't.
-        let mut all_keep = true;
+impl<T, E> FindOrd<T, E> for FindOrdCombinerAny<T, E> {
+    fn cmp(&self, t: &T) -> Result<FindOrdering, E> {
+        let mut all_val_below_target = true;
+        let mut all_val_above_target = true;
+        let mut all_valid_res = true;
         for f in self.combined.iter() {
-            match f.lt(t) {
-                CmpResult::False => return CmpResult::False,
-                CmpResult::True { keep } => {
-                    all_keep &= keep
+            match f.cmp(t)? {
+                FindOrdering::ValBelowTarget { is_valid_res } => {
+                    all_val_above_target = false;
+                    all_valid_res &= is_valid_res;
+                }
+                FindOrdering::ValAboveTarget { is_valid_res } => {
+                    all_val_below_target = false;
+                    all_valid_res &= is_valid_res;
+                }
+                FindOrdering::ValMatchesTarget => {
+                    all_val_below_target = false;
+                    all_val_above_target = false;
                 }
             }
         }
-        CmpResult::True { keep: all_keep }
-    }
-
-    fn gt(&self, t: &T) -> CmpResult {
-        // Target is greater than the value if it is according to all targets (i.e. it isn't if *any* of the targets say so).
-        // Default to keeping the candidate value but don't if any of the targets say we shouldn't.
-        let mut all_keep = true;
-        for f in self.combined.iter() {
-            match f.gt(t) {
-                CmpResult::False => return CmpResult::False,
-                CmpResult::True { keep } =>
-                    all_keep &= keep
+        Ok(
+            match (all_val_below_target, all_val_above_target) {
+                (true, false) => FindOrdering::ValBelowTarget { is_valid_res: all_valid_res },
+                (false, true) => FindOrdering::ValAboveTarget { is_valid_res: all_valid_res },
+                _ => FindOrdering::ValMatchesTarget,
             }
-        }
-        CmpResult::True { keep: all_keep }
+        )
     }
 }

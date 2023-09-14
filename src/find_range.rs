@@ -1,25 +1,29 @@
 use std::cmp::{max, min};
-use crate::find::{find, FindOrd, Element, CmpResult, FindResult};
+use crate::find::{find, FindOrd, Element, FindOrdering, FindResult};
 
-struct FindOrdRange<'a, T> {
-    lower: &'a dyn FindOrd<T>,
-    upper: &'a dyn FindOrd<T>,
+struct FindOrdRange<'a, T, E> {
+    lower: &'a dyn FindOrd<T, E>,
+    upper: &'a dyn FindOrd<T, E>,
 }
 
-impl<T> FindOrd<T> for FindOrdRange<'_, T> {
-    fn lt(&self, v: &T) -> CmpResult {
-        self.upper.lt(v).no_keep()
-    }
-
-    fn gt(&self, v: &T) -> CmpResult {
-        self.lower.gt(v).no_keep()
+impl<T, E> FindOrd<T, E> for FindOrdRange<'_, T, E> {
+    fn cmp(&self, t: &T) -> Result<FindOrdering, E> {
+        Ok(
+            if let FindOrdering::ValAboveTarget { .. } = self.upper.cmp(t)? {
+                FindOrdering::ValAboveTarget { is_valid_res: false } // erasing 'keep_val'
+            } else if let FindOrdering::ValBelowTarget { .. } = self.lower.cmp(t)? {
+                FindOrdering::ValBelowTarget { is_valid_res: false } // erasing 'keep_val'
+            } else {
+                FindOrdering::ValMatchesTarget
+            }
+        )
     }
 }
 
 pub fn find_range<T, E>(
     lookup: &impl Fn(i64) -> Result<T, E>,
-    lower_target: &dyn FindOrd<T>,
-    upper_target: &dyn FindOrd<T>,
+    lower_target: &dyn FindOrd<T, E>,
+    upper_target: &dyn FindOrd<T, E>,
     lower_idx: i64, // inclusive
     upper_idx: i64, // inclusive
 ) -> Result<(Option<Element<T>>, Option<Element<T>>), E> {
@@ -30,7 +34,7 @@ pub fn find_range<T, E>(
         upper_idx,
     )?;
     let (lower_upper_idx, upper_lower_idx) = match element {
-        None => (last_lower_idx, last_upper_idx),
+        None => (min(last_lower_idx, upper_idx), max(last_upper_idx, lower_idx)),
         Some(Element { idx, .. }) => (idx, idx),
     };
     // Possible optimization: If we can determine that the targets aren't using outwards snapping,
@@ -61,7 +65,7 @@ mod tests {
     use assert_matches::assert_matches;
     use crate::find::Snap; // use stdlib version once it's stable (https://github.com/rust-lang/rust/issues/82775)
 
-    fn all_snap_variants(v: i64) -> Vec<Box<dyn FindOrd<i64>>> {
+    fn all_snap_variants<E>(v: i64) -> Vec<Box<dyn FindOrd<i64, E>>> {
         vec![
             Box::new(v),
             Box::new(with_snap(v, Snap::Downwards)),
@@ -217,6 +221,48 @@ mod tests {
         assert_matches!(
             find_range(&new_lookup(arr), &1, &with_snap(1, Snap::Upwards), 0, arr.len() as i64 - 1),
             Ok((None, Some(u))) if u.val == 2
+        );
+    }
+
+    #[test]
+    fn below_element() {
+        let arr = &[0];
+        assert_matches!(
+            find_range(&new_lookup(arr), &-1, &-1, 0, arr.len() as i64 - 1),
+            Ok((None, None))
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &with_snap(-1, Snap::Upwards), &-1, 0, arr.len() as i64 - 1),
+            Ok((Some(l), None)) if l.val == 0
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &-1, &with_snap(-1, Snap::Upwards), 0, arr.len() as i64 - 1),
+            Ok((None, Some(u))) if u.val == 0
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &with_snap(-1, Snap::Upwards), &with_snap(-1, Snap::Upwards), 0, arr.len() as i64 - 1),
+            Ok((Some(l), Some(u))) if l.val == 0 && u.val == 0
+        );
+    }
+
+    #[test]
+    fn above_element() {
+        let arr = &[0];
+        assert_matches!(
+            find_range(&new_lookup(arr), &1, &1, 0, arr.len() as i64 - 1),
+            Ok((None, None))
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &with_snap(1, Snap::Downwards), &1, 0, arr.len() as i64 - 1),
+            Ok((Some(l), None)) if l.val == 0
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &1, &with_snap(1, Snap::Downwards), 0, arr.len() as i64 - 1),
+            Ok((None, Some(u))) if u.val == 0
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &with_snap(1, Snap::Downwards), &with_snap(1, Snap::Downwards), 0, arr.len() as i64 - 1),
+            Ok((Some(l), Some(u))) if l.val == 0 && u.val == 0
         );
     }
 }

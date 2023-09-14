@@ -1,51 +1,39 @@
+use std::cmp::Ordering;
+
 #[derive(Clone)]
 pub enum Snap {
     Downwards,
     Upwards,
 }
 
-// TODO: Can name types/cases after what the comparisons represent?
-//       'True' case means that the value was not matches and that the search space has to be limited as a result.
-//       And the "snap" value in that case determines whether to store the value as a (temporary) result anyway.
-pub enum CmpResult {
-    /// Inequality is satisfied. I.e. the checked value is *not* matched.
-    True {
+pub enum FindOrdering {
+    // The target is greater than the candidate value that it was compared against.
+    ValBelowTarget {
         /// Determines whether the non-matching value should be stored as a preliminary result.
-        keep: bool,
+        is_valid_res: bool,
     },
-    False,
+    // The target is less than the candidate value that it was compared against.
+    ValAboveTarget {
+        /// Determines whether the non-matching value should be stored as a preliminary result.
+        is_valid_res: bool,
+    },
+    ValMatchesTarget,
 }
 
-impl CmpResult {
-    pub(crate) fn no_keep(&self) -> CmpResult {
-        match self {
-            CmpResult::False => CmpResult::False,
-            CmpResult::True { .. } => CmpResult::True { keep: false },
-        }
-    }
-}
-
-pub trait FindOrd<T> {
-    fn lt(&self, t: &T) -> CmpResult;
-    fn gt(&self, t: &T) -> CmpResult;
+pub trait FindOrd<T, E> {
+    fn cmp(&self, t: &T) -> Result<FindOrdering, E>;
 }
 
 /// Let all PartialOrd types (of self) trivially implement FindOrd.
-impl<T: PartialOrd<T>> FindOrd<T> for T {
-    fn lt(&self, t: &T) -> CmpResult {
-        if self.lt(t) {
-            CmpResult::True { keep: false }
-        } else {
-            CmpResult::False
-        }
-    }
-
-    fn gt(&self, t: &T) -> CmpResult {
-        if self.gt(t) {
-            CmpResult::True { keep: false }
-        } else {
-            CmpResult::False
-        }
+impl<T: PartialOrd<T>, E> FindOrd<T, E> for T {
+    fn cmp(&self, t: &T) -> Result<FindOrdering, E> {
+        Ok(
+            match self.partial_cmp(t) {
+                Some(Ordering::Less) => FindOrdering::ValAboveTarget { is_valid_res: false },
+                Some(Ordering::Greater) => FindOrdering::ValBelowTarget { is_valid_res: false },
+                _ => FindOrdering::ValMatchesTarget, // "match" is defined as neither above nor below
+            }
+        )
     }
 }
 
@@ -71,7 +59,7 @@ pub struct FindResult<T> {
 // TODO: Generify the index type (should be 'usize' for arrays).
 pub fn find<T, E>(
     lookup: &impl Fn(i64) -> Result<T, E>,
-    target: &dyn FindOrd<T>,
+    target: &dyn FindOrd<T, E>,
     mut lower_idx: i64, // inclusive
     mut upper_idx: i64, // inclusive
 ) -> Result<FindResult<T>, E> {
@@ -79,25 +67,24 @@ pub fn find<T, E>(
     while lower_idx <= upper_idx {
         let idx = (lower_idx + upper_idx) / 2;
         let val = lookup(idx)?;
-        if let CmpResult::True { keep } = target.gt(&val) {
-            // val < target
-            if keep {
-                res = Some(Element { val, idx });
+        match target.cmp(&val)? {
+            FindOrdering::ValBelowTarget { is_valid_res } => {
+                if is_valid_res {
+                    res = Some(Element { val, idx });
+                }
+                lower_idx = idx + 1;
             }
-            lower_idx = idx + 1;
-            continue;
-        }
-        if let CmpResult::True { keep } = target.lt(&val) {
-            // val > target
-            if keep {
-                res = Some(Element { val, idx });
+            FindOrdering::ValAboveTarget { is_valid_res } => {
+                if is_valid_res {
+                    res = Some(Element { val, idx });
+                }
+                upper_idx = idx - 1;
             }
-            upper_idx = idx - 1;
-            continue;
+            FindOrdering::ValMatchesTarget => {
+                res = Some(Element { val, idx });
+                break;
+            }
         }
-        // val matches target
-        res = Some(Element { val, idx });
-        break;
     }
     Ok(FindResult {
         element: res,
@@ -114,7 +101,7 @@ mod tests {
 
     fn find_value<T, E>(
         lookup: impl Fn(i64) -> Result<T, E>,
-        target: &impl FindOrd<T>,
+        target: &impl FindOrd<T, E>,
         lower_idx: i64, // inclusive
         upper_idx: i64, // inclusive
     ) -> Result<Option<T>, E> {
