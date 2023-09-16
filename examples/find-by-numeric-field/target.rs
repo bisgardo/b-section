@@ -39,6 +39,7 @@ impl DataTarget {
     }
 }
 
+#[derive(Clone)]
 pub enum Target {
     Lower,
     Upper,

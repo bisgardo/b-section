@@ -2,13 +2,13 @@ use anyhow::{anyhow, Result};
 use lazy_static::lazy_static;
 use regex::Regex;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Op {
     Equals,
     Tilde,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Pair {
     pub name: String,
     pub op: Op,
