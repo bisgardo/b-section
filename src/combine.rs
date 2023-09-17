@@ -46,8 +46,8 @@ pub struct FindOrdCombineUpper<T, E> {
 
 impl<T: std::fmt::Debug, E> FindOrd<T, E> for FindOrdCombineUpper<T, E> {
     fn cmp(&self, t: &T) -> Result<FindOrdering, E> {
-        let mut val_below_any_target = true; // value is below if it is according to any target
-        let mut val_above_all_targets = false; // value is above it it is according to all targets
+        let mut val_below_any_target = false; // value is below if it is according to any target
+        let mut val_above_all_targets = true; // value is above it it is according to all targets
         let mut valid_below = false;
         let mut valid_above = false;
         for f in self.combined.iter() {

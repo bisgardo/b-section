@@ -65,13 +65,13 @@ fn main() -> Result<()> {
         if lower_target_combined.is_empty() {
             None
         } else {
-            Some(FindOrdCombineLower { combined: lower_target_combined })
+            Some(FindOrdCombineUpper { combined: lower_target_combined })
         };
     let upper_target =
         if upper_target_combined.is_empty() {
             None
         } else {
-            Some(FindOrdCombineUpper { combined: upper_target_combined })
+            Some(FindOrdCombineLower { combined: upper_target_combined })
         };
 
     // Parse records from stdin.
