@@ -45,12 +45,38 @@ pub fn new_lookup(datas: &Vec<Data>) -> impl Fn(i64) -> Result<Data> + '_ {
     }
 }
 
-fn parse_pairs(ss: Vec<String>) -> Result<Vec<Pair>> {
+fn map_to_pairs(ss: Vec<String>) -> Result<Vec<Pair>> {
     ss.iter().map(|s| s.as_str()).map(Pair::parse).collect()
 }
 
-fn combine_pairs<E>(ps: Vec<Pair>, t: Target) -> Result<Vec<Box<dyn FindOrd<Data, E>>>> {
-    ps.iter().map(|p| DataTarget::from_pair(p.clone(), t.clone())).collect()
+fn map_to_targets<E>(ps: Vec<Pair>, t: Target) -> Result<Vec<Box<DataTarget>>> {
+    ps.iter().map(|p| DataTarget::from_pair::<E>(p.clone(), t.clone())).collect()
+}
+
+fn resolve_snap(ds: &Vec<Box<DataTarget>>) -> Option<(Vec<Box<dyn FindOrd<Data, anyhow::Error>>>, bool, bool)> {
+    let mut snap_downwards = None;
+    let mut snap_upwards = None;
+    let mut fs: Vec<Box<dyn FindOrd<Data, anyhow::Error>>> = Vec::new(); // converting element type
+    for f in ds.iter() {
+        fs.push(f.clone());
+        let d = f.snap_downwards;
+        if let Some(s) = snap_downwards {
+            if s != d {
+                return None;
+            }
+        } else {
+            snap_downwards = Some(d);
+        }
+        let u = f.snap_upwards;
+        if let Some(s) = snap_upwards {
+            if s != u {
+                return None;
+            }
+        } else {
+            snap_upwards = Some(u);
+        }
+    }
+    snap_downwards.zip(snap_upwards).map(|(d, u)|(fs, d, u))
 }
 
 fn main() -> Result<()> {
@@ -59,19 +85,23 @@ fn main() -> Result<()> {
     let from = args.from;
     let to = args.to;
 
-    let lower_target_combined = combine_pairs(parse_pairs(from)?, Target::Lower)?;
-    let upper_target_combined = combine_pairs(parse_pairs(to)?, Target::Upper)?;
+    let lower_target_combined = map_to_targets::<anyhow::Error>(map_to_pairs(from)?, Target::Lower)?;
+    let upper_target_combined = map_to_targets::<anyhow::Error>(map_to_pairs(to)?, Target::Upper)?;
     let lower_target =
         if lower_target_combined.is_empty() {
             None
         } else {
-            Some(FindOrdCombineUpper { combined: lower_target_combined })
+            // TODO Add context to error.
+            let (combined, snap_downwards, snap_upwards) = resolve_snap(&lower_target_combined).ok_or(anyhow!("bla bla 1"))?;
+            Some(FindOrdCombineUpper { combined, snap_downwards, snap_upwards })
         };
     let upper_target =
         if upper_target_combined.is_empty() {
             None
         } else {
-            Some(FindOrdCombineLower { combined: upper_target_combined })
+            // TODO Add context to error.
+            let (combined, snap_downwards, snap_upwards) = resolve_snap(&lower_target_combined).ok_or(anyhow!("bla bla 2"))?;
+            Some(FindOrdCombineLower { combined, snap_downwards, snap_upwards })
         };
 
     // Parse records from stdin.

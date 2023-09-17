@@ -1,24 +1,24 @@
 use crate::find::{FindOrd, FindOrdering};
 
 pub struct FindOrdCombineLower<T, E> {
-    pub combined: Vec<Box<dyn FindOrd<T, E>>>, // TODO Use slice? Lifetime vs Box?
+    pub combined: Vec<Box<dyn FindOrd<T, E>>>,
+    pub snap_downwards: bool,
+    pub snap_upwards: bool,
 }
 
+// Note that we cannot correctly infer 'is_valid_res' from the combined targets in all cases:
+// - In the "any" direction, we'll automatically end up picking the most restrictive target as that'll be the only one left at the edge.
+// - In the "all" direction, we cannot know from the information available in a single call which target is the most restrictive one.
 impl<T: std::fmt::Debug, E> FindOrd<T, E> for FindOrdCombineLower<T, E> {
     fn cmp(&self, t: &T) -> Result<FindOrdering, E> {
         let mut val_below_all_targets = true; // value is below if it is according to all targets
         let mut val_above_any_target = false; // value is above it it is according to any target
-        let mut valid_below = false;
-        let mut valid_above = false;
         for f in self.combined.iter() {
             match f.cmp(t)? {
-                FindOrdering::ValBelowTarget { is_valid_res } => {
-                    valid_below |= is_valid_res;
-                }
-                FindOrdering::ValAboveTarget { is_valid_res } => {
+                FindOrdering::ValBelowTarget { .. } => {}
+                FindOrdering::ValAboveTarget { .. } => {
                     val_below_all_targets = false;
                     val_above_any_target = true;
-                    valid_above |= is_valid_res;
                 }
                 FindOrdering::ValMatchesTarget => {
                     val_below_all_targets = false;
@@ -27,11 +27,11 @@ impl<T: std::fmt::Debug, E> FindOrd<T, E> for FindOrdCombineLower<T, E> {
         }
         Ok(
             if val_below_all_targets {
-                println!("cmp {:?} = val below target (valid={})", t, valid_below);
-                FindOrdering::ValBelowTarget { is_valid_res: valid_below }
+                println!("cmp {:?} = val below target (valid={})", t, self.snap_downwards);
+                FindOrdering::ValBelowTarget { is_valid_res: self.snap_downwards }
             } else if val_above_any_target {
-                println!("cmp {:?} = val above target (valid={})", t, valid_above);
-                FindOrdering::ValAboveTarget { is_valid_res: valid_above }
+                println!("cmp {:?} = val above target (valid={})", t, self.snap_upwards);
+                FindOrdering::ValAboveTarget { is_valid_res: self.snap_upwards }
             } else {
                 println!("cmp {:?} = match", t);
                 FindOrdering::ValMatchesTarget
@@ -41,25 +41,23 @@ impl<T: std::fmt::Debug, E> FindOrd<T, E> for FindOrdCombineLower<T, E> {
 }
 
 pub struct FindOrdCombineUpper<T, E> {
-    pub combined: Vec<Box<dyn FindOrd<T, E>>>, // TODO Use slice? Lifetime vs Box?
+    // TODO Use slice? Lifetime vs Box?
+    pub combined: Vec<Box<dyn FindOrd<T, E>>>,
+    pub snap_downwards: bool,
+    pub snap_upwards: bool,
 }
 
 impl<T: std::fmt::Debug, E> FindOrd<T, E> for FindOrdCombineUpper<T, E> {
     fn cmp(&self, t: &T) -> Result<FindOrdering, E> {
         let mut val_below_any_target = false; // value is below if it is according to any target
         let mut val_above_all_targets = true; // value is above it it is according to all targets
-        let mut valid_below = false;
-        let mut valid_above = false;
         for f in self.combined.iter() {
             match f.cmp(t)? {
-                FindOrdering::ValBelowTarget { is_valid_res } => {
+                FindOrdering::ValBelowTarget { .. } => {
                     val_below_any_target = true;
                     val_above_all_targets = false;
-                    valid_below |= is_valid_res;
                 }
-                FindOrdering::ValAboveTarget { is_valid_res } => {
-                    valid_above |= is_valid_res;
-                }
+                FindOrdering::ValAboveTarget { .. } => {}
                 FindOrdering::ValMatchesTarget => {
                     val_above_all_targets = false;
                 }
@@ -67,11 +65,11 @@ impl<T: std::fmt::Debug, E> FindOrd<T, E> for FindOrdCombineUpper<T, E> {
         }
         Ok(
             if val_above_all_targets {
-                println!("cmp {:?} = val above target (valid={})", t, valid_above);
-                FindOrdering::ValAboveTarget { is_valid_res: valid_above }
+                println!("cmp {:?} = val above target (valid={})", t, self.snap_upwards);
+                FindOrdering::ValAboveTarget { is_valid_res: self.snap_upwards }
             } else if val_below_any_target {
-                println!("cmp {:?} = val below target (valid={})", t, valid_below);
-                FindOrdering::ValBelowTarget { is_valid_res: valid_below }
+                println!("cmp {:?} = val below target (valid={})", t, self.snap_downwards);
+                FindOrdering::ValBelowTarget { is_valid_res: self.snap_downwards }
             } else {
                 println!("cmp {:?} = match", t);
                 FindOrdering::ValMatchesTarget
