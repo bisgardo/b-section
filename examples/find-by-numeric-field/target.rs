@@ -4,7 +4,6 @@ use crate::pair::{Op, Pair};
 
 pub type Data = HashMap<String, f64>;
 
-#[derive(Clone)]
 pub struct DataTarget {
     pub name: String,
     pub val: f64,
@@ -28,7 +27,7 @@ impl<E> FindOrd<Data, E> for DataTarget {
 }
 
 impl DataTarget {
-    pub fn from_pair<E>(p: Pair, t: Target) -> Result<Box<DataTarget>, anyhow::Error> {
+    pub fn from_pair(p: Pair, t: Target) -> Result<DataTarget, anyhow::Error> {
         let name = p.name;
         let val = p.value.parse()?;
         let snap_out = match p.op {
@@ -40,7 +39,7 @@ impl DataTarget {
             Target::Upper => snap_out,
         };
         let snap_downwards = !snap_upwards;
-        Ok(Box::new(DataTarget { name, val, snap_downwards, snap_upwards }))
+        Ok(DataTarget { name, val, snap_downwards, snap_upwards })
     }
 }
 
