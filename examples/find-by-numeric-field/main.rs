@@ -5,7 +5,7 @@ use b_section::find::{Element, find, FindOrd};
 use b_section::find_range::find_range;
 use std::collections::HashMap;
 use std::io::stdin;
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Context, Error, Result};
 use clap::Parser;
 use b_section::combine::{FindOrdCombineLower, FindOrdCombineUpper};
 use crate::pair::{Op, Pair};
@@ -53,30 +53,37 @@ fn map_to_targets(ps: Vec<Pair>, t: Target) -> Result<Vec<DataTarget>> {
     ps.into_iter().map(|p| DataTarget::from_pair(p, t.clone())).collect()
 }
 
-fn resolve_snap(ds: Vec<DataTarget>) -> Option<(Vec<Box<dyn FindOrd<Data, anyhow::Error>>>, bool, bool)> {
-    let mut snap_downwards = None;
-    let mut snap_upwards = None;
-    let mut fs: Vec<Box<dyn FindOrd<Data, anyhow::Error>>> = Vec::new(); // converting element type
+fn resolve_snap(ds: Vec<DataTarget>) -> Option<(Vec<Box<dyn FindOrd<Data, Error>>>, bool, bool)> {
+    let mut snap_downwards = None; // will be 'Some' iff 'snap_downwards' of all targets are the same
+    let mut snap_upwards = None; // will be 'Some' iff 'snap_upwards' of all targets are the same
+    let mut fs: Vec<Box<dyn FindOrd<Data, Error>>> = Vec::with_capacity(ds.len()); // converting element type
     for f in ds.into_iter() {
         let d = f.snap_downwards;
         if let Some(s) = snap_downwards {
             if s != d {
+                // Value of 'snap_downwards' differs from that of previous targets.
                 return None;
             }
         } else {
+            // First target: Just capture value.
             snap_downwards = Some(d);
         }
         let u = f.snap_upwards;
         if let Some(s) = snap_upwards {
             if s != u {
+                // Value of 'snap_upwards' differs from that of previous targets.
                 return None;
             }
         } else {
+            // First target: Just capture value.
             snap_upwards = Some(u);
         }
         fs.push(Box::new(f));
     }
-    snap_downwards.zip(snap_upwards).map(|(d, u)|(fs, d, u))
+    match (snap_downwards, snap_upwards) {
+        (Some(d), Some(u)) => Some((fs, d, u)),
+        _ => None,
+    }
 }
 
 fn main() -> Result<()> {
@@ -91,16 +98,18 @@ fn main() -> Result<()> {
         if lower_target_combined.is_empty() {
             None
         } else {
-            // TODO Add context to error.
-            let (combined, snap_downwards, snap_upwards) = resolve_snap(lower_target_combined).ok_or(anyhow!("bla bla 1"))?;
+            let (combined, snap_downwards, snap_upwards) =
+                resolve_snap(lower_target_combined)
+                    .ok_or(anyhow!("cannot have '--from' constraints using both '=' and '~'"))?;
             Some(FindOrdCombineUpper { combined, snap_downwards, snap_upwards })
         };
     let upper_target =
         if upper_target_combined.is_empty() {
             None
         } else {
-            // TODO Add context to error.
-            let (combined, snap_downwards, snap_upwards) = resolve_snap(upper_target_combined).ok_or(anyhow!("bla bla 2"))?;
+            let (combined, snap_downwards, snap_upwards) =
+                resolve_snap(upper_target_combined)
+                    .ok_or(anyhow!("cannot have '--to' constraints using both '=' and '~'"))?;
             Some(FindOrdCombineLower { combined, snap_downwards, snap_upwards })
         };
 
