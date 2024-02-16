@@ -164,8 +164,8 @@ mod tests {
         let arr = &[0, 2];
         let ts = &[
             -1, // below first element
-            1, // between elements
-            3, // above last element
+            1,  // between elements
+            3,  // above last element
         ];
         for t in ts {
             assert_matches!(

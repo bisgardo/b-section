@@ -10,9 +10,9 @@ impl<T, E> FindOrd<T, E> for FindOrdRange<'_, T, E> {
     fn cmp(&self, t: &T) -> Result<FindOrdering, E> {
         Ok(
             if let FindOrdering::ValAboveTarget { .. } = self.upper.cmp(t)? {
-                FindOrdering::ValAboveTarget { is_valid_res: false } // erasing 'keep_val'
+                FindOrdering::ValAboveTarget { is_valid_res: false } // erasing 'is_valid_res'
             } else if let FindOrdering::ValBelowTarget { .. } = self.lower.cmp(t)? {
-                FindOrdering::ValBelowTarget { is_valid_res: false } // erasing 'keep_val'
+                FindOrdering::ValBelowTarget { is_valid_res: false } // erasing 'is_valid_res'
             } else {
                 FindOrdering::ValMatchesTarget
             }
@@ -117,9 +117,9 @@ mod tests {
             for lt in all_snap_variants(v) {
                 for ut in all_snap_variants(v) {
                     assert_matches!(
-                    find_range(&new_lookup(&arr), lt.as_ref(), ut.as_ref(), 0, arr.len() as i64 - 1),
-                    Ok((Some(l), Some(u))) if l.val == v && u.val == v
-                );
+                        find_range(&new_lookup(&arr), lt.as_ref(), ut.as_ref(), 0, arr.len() as i64 - 1),
+                        Ok((Some(l), Some(u))) if l.val == v && u.val == v
+                    );
                 }
             }
         }

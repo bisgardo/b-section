@@ -38,7 +38,7 @@ impl FindOrd<Data, Error> for DataTarget {
                 } else {
                     FindOrdering::ValMatchesTarget
                 }
-            )
+            ),
         }
     }
 }
