@@ -1,5 +1,5 @@
+use crate::find::{find, Element, FindOrd, FindOrdering, FindResult};
 use std::cmp::{max, min};
-use crate::find::{find, FindOrd, Element, FindOrdering, FindResult};
 
 struct FindOrdRange<'a, T, E> {
     lower: &'a dyn FindOrd<T, E>,
@@ -61,9 +61,9 @@ pub fn find_range<T, E>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::find::Snap;
     use crate::test_util::helpers::*;
-    use assert_matches::assert_matches;
-    use crate::find::Snap; // use stdlib version once it's stable (https://github.com/rust-lang/rust/issues/82775)
+    use assert_matches::assert_matches; // use stdlib version once it's stable (https://github.com/rust-lang/rust/issues/82775)
 
     fn all_snap_variants<E>(v: i64) -> Vec<Box<dyn FindOrd<i64, E>>> {
         vec![
@@ -114,9 +114,9 @@ mod tests {
             for lt in all_snap_variants(v) {
                 for ut in all_snap_variants(v) {
                     assert_matches!(
-                    find_range(&new_lookup(&arr), lt.as_ref(), ut.as_ref(), 0, arr.len() as i64 - 1),
-                    Ok((Some(l), Some(u))) if l.val == v && u.val == v
-                );
+                        find_range(&new_lookup(&arr), lt.as_ref(), ut.as_ref(), 0, arr.len() as i64 - 1),
+                        Ok((Some(l), Some(u))) if l.val == v && u.val == v
+                    );
                 }
             }
         }

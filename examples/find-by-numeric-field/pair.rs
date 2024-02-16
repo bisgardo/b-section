@@ -27,11 +27,10 @@ impl Pair {
                 op: match c[2].to_string().as_str() {
                     "=" => Op::Equals,
                     "~" => Op::Tilde,
-                    x => return Err(anyhow!("invalid op '{}'", x))
+                    x => return Err(anyhow!("invalid op '{}'", x)),
                 },
                 value: c[3].to_string(),
             }),
         }
     }
 }
-

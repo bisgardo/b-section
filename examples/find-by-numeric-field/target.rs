@@ -1,6 +1,6 @@
-use std::collections::HashMap;
-use b_section::find::{FindOrdering, FindOrd, Snap};
 use crate::pair::{Op, Pair};
+use b_section::find::{FindOrd, FindOrdering, Snap};
+use std::collections::HashMap;
 
 pub type Data = HashMap<String, f64>;
 

@@ -1,14 +1,14 @@
-mod target;
 mod pair;
+mod target;
 
-use b_section::find::Element;
-use b_section::find_range::find_range;
-use std::collections::HashMap;
-use std::io::stdin;
-use anyhow::{anyhow, Context, Result};
-use clap::Parser;
 use crate::pair::{Op, Pair};
 use crate::target::{Data, DataTarget, Target};
+use anyhow::{anyhow, Context, Result};
+use b_section::find::Element;
+use b_section::find_range::find_range;
+use clap::Parser;
+use std::collections::HashMap;
+use std::io::stdin;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -29,7 +29,6 @@ fn parse_stdin_records(s: String) -> Result<HashMap<String, f64>> {
         })
         .collect()
 }
-
 
 pub fn new_lookup(datas: &Vec<Data>) -> impl Fn(i64) -> Result<Data> + '_ {
     |idx| {
