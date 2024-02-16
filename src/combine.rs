@@ -18,8 +18,8 @@ pub struct FindOrdCombineLower<T, E> {
 //   what should even happen in cases like where you have two targets at the same place but with different snap...
 impl<T: std::fmt::Debug, E> FindOrd<T, E> for FindOrdCombineLower<T, E> {
     fn cmp(&self, t: &T) -> Result<FindOrdering, E> {
-        let mut val_below_all_targets = true; // value is below if it is according to all targets
-        let mut val_above_any_target = false; // value is above it it is according to any target
+        let mut val_below_all_targets = true; // value is below if all targets say so
+        let mut val_above_any_target = false; // value is above if any target says so
         for f in self.combined.iter() {
             match f.cmp(t)? {
                 FindOrdering::ValBelowTarget { .. } => {}
@@ -54,10 +54,10 @@ pub struct FindOrdCombineUpper<T, E> {
     pub snap_upwards: bool,
 }
 
-impl<T: std::fmt::Debug, E> FindOrd<T, E> for FindOrdCombineUpper<T, E> {
+impl<T, E> FindOrd<T, E> for FindOrdCombineUpper<T, E> {
     fn cmp(&self, t: &T) -> Result<FindOrdering, E> {
-        let mut val_below_any_target = false; // value is below if it is according to any target
-        let mut val_above_all_targets = true; // value is above it it is according to all targets
+        let mut val_below_any_target = false; // value is below if any target says so
+        let mut val_above_all_targets = true; // value is above if all targets say so
         for f in self.combined.iter() {
             match f.cmp(t)? {
                 FindOrdering::ValBelowTarget { .. } => {

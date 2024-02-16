@@ -1,15 +1,15 @@
-mod target;
 mod pair;
+mod target;
 
-use b_section::find::{Element, find, FindOrd};
+use crate::pair::{Op, Pair};
+use crate::target::{data_to_string, Data, DataTarget, Target};
+use anyhow::{anyhow, Context, Error, Result};
+use b_section::combine::{FindOrdCombineLower, FindOrdCombineUpper};
+use b_section::find::{find, Element, FindOrd};
 use b_section::find_range::find_range;
+use clap::Parser;
 use std::collections::HashMap;
 use std::io::stdin;
-use anyhow::{anyhow, Context, Error, Result};
-use clap::Parser;
-use b_section::combine::{FindOrdCombineLower, FindOrdCombineUpper};
-use crate::pair::{Op, Pair};
-use crate::target::{Data, DataTarget, Target};
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -100,7 +100,7 @@ fn main() -> Result<()> {
         } else {
             let (combined, snap_downwards, snap_upwards) =
                 resolve_snap(lower_target_combined)
-                    .ok_or(anyhow!("cannot have '--from' constraints using both '=' and '~'"))?;
+                    .ok_or(anyhow!("invalid combination of '--from' constraints: mixed usage of '=' and '~'"))?;
             Some(FindOrdCombineUpper { combined, snap_downwards, snap_upwards })
         };
     let upper_target =
@@ -109,7 +109,7 @@ fn main() -> Result<()> {
         } else {
             let (combined, snap_downwards, snap_upwards) =
                 resolve_snap(upper_target_combined)
-                    .ok_or(anyhow!("cannot have '--to' constraints using both '=' and '~'"))?;
+                    .ok_or(anyhow!("invalid combination of '--to' constraints: mixed usage of '=' and '~'"))?;
             Some(FindOrdCombineLower { combined, snap_downwards, snap_upwards })
         };
 
@@ -155,12 +155,12 @@ fn main() -> Result<()> {
 
     // Print results.
     if let Some(Element { val, idx }) = lower {
-        println!("LOWER: index {}: {:?}", idx, val);
+        println!("LOWER: index {}: {:?}", idx, data_to_string(val));
     } else {
         println!("LOWER: none!");
     }
     if let Some(Element { val, idx }) = upper {
-        println!("UPPER: index {}: {:?}", idx, val)
+        println!("UPPER: index {}: {:?}", idx, data_to_string(val))
     } else {
         println!("UPPER: none!");
     }

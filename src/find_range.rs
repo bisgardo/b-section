@@ -1,5 +1,5 @@
+use crate::find::{find, Element, FindOrd, FindOrdering, FindResult};
 use std::cmp::{max, min};
-use crate::find::{find, FindOrd, Element, FindOrdering, FindResult};
 
 struct FindOrdRange<'a, T, E> {
     lower: &'a dyn FindOrd<T, E>,
@@ -27,7 +27,7 @@ pub fn find_range<T, E>(
     lower_idx: i64, // inclusive
     upper_idx: i64, // inclusive
 ) -> Result<(Option<Element<T>>, Option<Element<T>>), E> {
-    println!("find in range {}-{}", lower_idx, upper_idx);
+    // println!("find in range {}-{}", lower_idx, upper_idx);
     let FindResult { element, last_lower_idx, last_upper_idx } = find(
         lookup,
         &FindOrdRange { lower: lower_target, upper: upper_target },
@@ -44,14 +44,14 @@ pub fn find_range<T, E>(
     // and we recorded the snap capture of the element (if it was snap downwards then the value would equal 'lower_res' and vice versa).
     // It isn't clear what the implications of using 'idx' from such a value is through.
     // But we can always detect "not found" as 'last_lower_idx > last_upper_idx'.
-    println!("find lower in {}-{}", max(last_lower_idx - 1, lower_idx), lower_upper_idx);
+    // println!("find lower in {}-{}", max(last_lower_idx - 1, lower_idx), lower_upper_idx);
     let lower_res = find(
         lookup,
         lower_target,
         max(last_lower_idx - 1, lower_idx), // necessary to ensure that we find any "snap down" value
         lower_upper_idx,
     )?;
-    println!("find upper in {}-{}", upper_lower_idx, min(last_upper_idx + 1, upper_idx));
+    // println!("find upper in {}-{}", upper_lower_idx, min(last_upper_idx + 1, upper_idx));
     let upper_res = find(
         lookup,
         upper_target,
@@ -64,9 +64,9 @@ pub fn find_range<T, E>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::find::Snap;
     use crate::test_util::helpers::*;
-    use assert_matches::assert_matches;
-    use crate::find::Snap; // use stdlib version once it's stable (https://github.com/rust-lang/rust/issues/82775)
+    use assert_matches::assert_matches; // use stdlib version once it's stable (https://github.com/rust-lang/rust/issues/82775)
 
     fn all_snap_variants<E>(v: i64) -> Vec<Box<dyn FindOrd<i64, E>>> {
         vec![
