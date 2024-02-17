@@ -1,6 +1,12 @@
 #[cfg(test)]
 pub mod helpers {
-    use crate::find::{FindOrd, FindOrdering, Snap};
+    use crate::find::{FindOrd, FindOrdering};
+
+    #[derive(Clone)]
+    pub enum Snap {
+        Downwards,
+        Upwards,
+    }
 
     pub fn new_lookup<T: Clone>(arr: &[T]) -> impl Fn(i64) -> Result<T, String> + '_ {
         |idx| {

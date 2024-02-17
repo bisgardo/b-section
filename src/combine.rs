@@ -1,22 +1,26 @@
 use crate::find::{FindOrd, FindOrdering};
 
+/// Implementation of [`FindOrd`] that allows a value to be effectively compared
+/// against the "lowermost" target in a given set of targets.
+///
+/// That is, the comparison result is defined as "lesser" if the value is below *all* targets
+/// and "greater" if the value is above *any* target.
+///
+/// This is the opposite of [FindOrdCombineUpper] which compares against the "uppermost" target.
+///
+/// The `is_valid_res` fields of the individual comparison results are ignored
+/// because combining them correctly in all cases is non-trivial at best.
+/// Instead, the returned value if `is_valid_res` is
+/// - `snap_downwards` if the result is [`FindOrdering::ValBelowTarget`]
+/// - `snap_upwards` if the result is [`FindOrdering::ValAboveTarget`].
 pub struct FindOrdCombineLower<T, E> {
+    // TODO Use slice? Lifetime vs Box?
     pub combined: Vec<Box<dyn FindOrd<T, E>>>,
     pub snap_downwards: bool,
     pub snap_upwards: bool,
 }
 
-// Note that we cannot correctly infer 'is_valid_res' from the combined targets in all cases:
-// - In the "any" direction, we'll automatically end up picking the most restrictive target
-//   as that'll be the only one left at the edge.
-// - In the "all" direction, we cannot know from the information available in a single call
-//   which target is the most restrictive one.
-//   A possible workaround could be to check the next element with the opposite inequality.
-//   Then you would get the "opposite" 'is_valid_res' of the most restrictive target(s)
-//   which is (probably) the opposite of the one we were looking for.
-//   Doing that seems like severe overkill though and you could also ask
-//   what should even happen in cases like where you have two targets at the same place but with different snap...
-impl<T: std::fmt::Debug, E> FindOrd<T, E> for FindOrdCombineLower<T, E> {
+impl<T, E> FindOrd<T, E> for FindOrdCombineLower<T, E> {
     fn cmp(&self, t: &T) -> Result<FindOrdering, E> {
         let mut val_below_all_targets = true; // value is below if all targets say so
         let mut val_above_any_target = false; // value is above if any target says so
@@ -47,8 +51,20 @@ impl<T: std::fmt::Debug, E> FindOrd<T, E> for FindOrdCombineLower<T, E> {
     }
 }
 
+/// Implementation of [`FindOrd`] that allows a value to be effectively compared
+/// against the "uppermost" target in a given set of targets.
+///
+/// That is, the comparison result is defined as "lesser" if the value is below *any* target
+/// and "greater" if the value is above *all* targets.
+///
+/// This is the opposite of [FindOrdCombineLower] which compares against the "lowermost" target.
+///
+/// The `is_valid_res` fields of the individual comparison results are ignored
+/// because combining them correctly in all cases is non-trivial at best.
+/// Instead, the returned value if `is_valid_res` is
+/// - `snap_downwards` if the result is [`FindOrdering::ValBelowTarget`]
+/// - `snap_upwards` if the result is [`FindOrdering::ValAboveTarget`].
 pub struct FindOrdCombineUpper<T, E> {
-    // TODO Use slice? Lifetime vs Box?
     pub combined: Vec<Box<dyn FindOrd<T, E>>>,
     pub snap_downwards: bool,
     pub snap_upwards: bool,

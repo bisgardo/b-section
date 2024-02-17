@@ -35,7 +35,10 @@ pub fn find_range<T, E>(
         upper_idx,
     )?;
     let (lower_upper_idx, upper_lower_idx) = match element {
-        None => (min(last_lower_idx, upper_idx), max(last_upper_idx, lower_idx)),
+        // Element was not found: the lower and upper limits will be on each side of the index where the element would have been (reversed).
+        // It's possible that "snap out" values will be found up/down to this index.
+        None => (last_upper_idx, last_lower_idx),
+        // TODO: Isn't '(idx, idx-1)' sufficient? The range is extended below anyway and we found the value without snapping.
         Some(Element { idx, .. }) => (idx, idx),
     };
     // Possible optimization: If we can determine that the targets aren't using outwards snapping,
@@ -44,19 +47,27 @@ pub fn find_range<T, E>(
     // and we recorded the snap capture of the element (if it was snap downwards then the value would equal 'lower_res' and vice versa).
     // It isn't clear what the implications of using 'idx' from such a value is through.
     // But we can always detect "not found" as 'last_lower_idx > last_upper_idx'.
+
     // println!("find lower in {}-{}", max(last_lower_idx - 1, lower_idx), lower_upper_idx);
+
+    // Ignoring complications, search for lower target in range ['last_lower_idx'; 'idx'].
+    // The range is extended to ensure that "snap down" values are found.
     let lower_res = find(
         lookup,
         lower_target,
-        max(last_lower_idx - 1, lower_idx), // necessary to ensure that we find any "snap down" value
-        lower_upper_idx,
+        max(last_lower_idx - 1, lower_idx), // extend range one down (limited by 'lower_idx') to ensure that any "snap down" value is found
+        lower_upper_idx, // if no element was found in range, this equals 'last_lower_idx' (limited by 'upper_idx')
     )?;
+
     // println!("find upper in {}-{}", upper_lower_idx, min(last_upper_idx + 1, upper_idx));
+
+    // Ignoring complications, search for lower target in range ['last_lower_idx'; 'idx'].
+    // The range is extended to ensure that "snap down" values are found.
     let upper_res = find(
         lookup,
         upper_target,
-        upper_lower_idx,
-        min(last_upper_idx + 1, upper_idx), // necessary to ensure that we find any "snap up" value
+        upper_lower_idx, // if no element was found in range, then this equals 'last_upper_idx' (limited by 'lower_idx')
+        min(last_upper_idx + 1, upper_idx), // extend range one up (limited by 'upper_idx') to ensure that any "snap up" value is found
     )?;
     Ok((lower_res.element, upper_res.element))
 }
@@ -64,7 +75,6 @@ pub fn find_range<T, E>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::find::Snap;
     use crate::test_util::helpers::*;
     use assert_matches::assert_matches; // use stdlib version once it's stable (https://github.com/rust-lang/rust/issues/82775)
 
@@ -215,11 +225,11 @@ mod tests {
         );
         assert_matches!(
             find_range(&new_lookup(arr), &with_snap(1, Snap::Upwards), &1, 0, arr.len() as i64 - 1),
-            Ok((Some(l), None)) if l.val == 2
+            Ok((None, None))
         );
         assert_matches!(
             find_range(&new_lookup(arr), &1, &with_snap(1, Snap::Downwards), 0, arr.len() as i64 - 1),
-            Ok((None, Some(u))) if u.val == 0
+            Ok((None, None))
         );
         assert_matches!(
             find_range(&new_lookup(arr), &1, &with_snap(1, Snap::Upwards), 0, arr.len() as i64 - 1),
@@ -236,7 +246,7 @@ mod tests {
         );
         assert_matches!(
             find_range(&new_lookup(arr), &with_snap(-1, Snap::Upwards), &-1, 0, arr.len() as i64 - 1),
-            Ok((Some(l), None)) if l.val == 0
+            Ok((None, None))
         );
         assert_matches!(
             find_range(&new_lookup(arr), &-1, &with_snap(-1, Snap::Upwards), 0, arr.len() as i64 - 1),
@@ -244,7 +254,7 @@ mod tests {
         );
         assert_matches!(
             find_range(&new_lookup(arr), &with_snap(-1, Snap::Upwards), &with_snap(-1, Snap::Upwards), 0, arr.len() as i64 - 1),
-            Ok((Some(l), Some(u))) if l.val == 0 && u.val == 0
+            Ok((None, Some(u))) if u.val == 0
         );
     }
 
@@ -261,11 +271,13 @@ mod tests {
         );
         assert_matches!(
             find_range(&new_lookup(arr), &1, &with_snap(1, Snap::Downwards), 0, arr.len() as i64 - 1),
-            Ok((None, Some(u))) if u.val == 0
+            Ok((None, None))
         );
         assert_matches!(
             find_range(&new_lookup(arr), &with_snap(1, Snap::Downwards), &with_snap(1, Snap::Downwards), 0, arr.len() as i64 - 1),
-            Ok((Some(l), Some(u))) if l.val == 0 && u.val == 0
+            Ok((Some(l), None)) if l.val == 0
         );
     }
+
+    // TODO: Add test where lower/upper targets are swapped. They should not find any results...
 }
