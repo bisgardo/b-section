@@ -8,7 +8,6 @@ pub enum Op {
     Tilde,
 }
 
-#[derive(Debug, PartialEq)]
 pub struct Pair {
     pub name: String,
     pub op: Op,

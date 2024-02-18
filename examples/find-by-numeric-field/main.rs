@@ -2,7 +2,7 @@ mod pair;
 mod target;
 
 use crate::pair::{Op, Pair};
-use crate::target::{Data, DataTarget, Target};
+use crate::target::{Data, data_to_string, DataTarget, Target};
 use anyhow::{anyhow, Context, Result};
 use b_section::find::Element;
 use b_section::find_range::find_range;
@@ -62,20 +62,20 @@ fn main() -> Result<()> {
     // Run bisection.
     let (lower, upper) = find_range(
         &new_lookup(&datas),
-        DataTarget::from_pair(from_pair, Target::Lower)?.as_ref(),
-        DataTarget::from_pair(to_pair, Target::Upper)?.as_ref(),
+        &DataTarget::from_pair(from_pair, Target::Lower)?,
+        &DataTarget::from_pair(to_pair, Target::Upper)?,
         0,
         datas.len() as i64 - 1,
     )?;
 
     // Print results.
     if let Some(Element { val, idx }) = lower {
-        println!("LOWER: index {}: {:?}", idx, val)
+        println!("LOWER: index {}: {:?}", idx, data_to_string(val));
     } else {
         println!("LOWER: none!");
     }
     if let Some(Element { val, idx }) = upper {
-        println!("UPPER: index {}: {:?}", idx, val)
+        println!("UPPER: index {}: {:?}", idx, data_to_string(val))
     } else {
         println!("UPPER: none!");
     }

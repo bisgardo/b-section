@@ -1,41 +1,62 @@
 use crate::pair::{Op, Pair};
-use b_section::find::{FindOrd, FindOrdering, Snap};
+use anyhow::{anyhow, Error};
+use b_section::find::{FindOrd, FindOrdering};
 use std::collections::HashMap;
 
 pub type Data = HashMap<String, f64>;
 
+fn sorted_items<K: Ord, V>(m: &HashMap<K, V>) -> Vec<(&K, &V)> {
+    let mut res: Vec<_> = m.iter().collect();
+    res.sort_by(|&(l, _), &(r, _)| l.cmp(r));
+    res
+}
+
+pub fn data_to_string(d: Data) -> String {
+    sorted_items(&d)
+        .iter()
+        .map(|&(k, v)| format!("{k}={v}"))
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 pub struct DataTarget {
     pub name: String,
     pub val: f64,
-    pub snap: Option<Snap>,
+    pub snap_downwards: bool,
+    pub snap_upwards: bool,
 }
 
-impl<E> FindOrd<Data, E> for DataTarget {
-    fn cmp(&self, t: &Data) -> Result<FindOrdering, E> {
-        let val = t[&self.name];
-        Ok(
-            if self.val < val {
-                FindOrdering::ValAboveTarget { is_valid_res: matches!(self.snap, Some(Snap::Upwards)) }
-            } else if self.val > val {
-                FindOrdering::ValBelowTarget { is_valid_res: matches!(self.snap, Some(Snap::Downwards)) }
-            } else {
-                FindOrdering::ValMatchesTarget
-            }
-        )
+impl FindOrd<Data, Error> for DataTarget {
+    fn cmp(&self, t: &Data) -> Result<FindOrdering, Error> {
+        match t.get(&self.name) {
+            None => Err(anyhow!("missing key '{}'", self.name)),
+            Some(&val) => Ok(
+                if self.val < val {
+                    FindOrdering::ValAboveTarget { is_valid_res: self.snap_upwards }
+                } else if self.val > val {
+                    FindOrdering::ValBelowTarget { is_valid_res: self.snap_downwards }
+                } else {
+                    FindOrdering::ValMatchesTarget
+                }
+            ),
+        }
     }
 }
 
 impl DataTarget {
-    pub fn from_pair<E>(p: Pair, t: Target) -> Result<Box<dyn FindOrd<Data, E>>, anyhow::Error> {
+    pub fn from_pair(p: Pair, t: Target) -> Result<DataTarget, Error> {
         let name = p.name;
         let val = p.value.parse()?;
-        let snap = match (t, p.op) {
-            (Target::Lower, Op::Tilde) => Snap::Downwards,
-            (Target::Lower, Op::Equals) => Snap::Upwards,
-            (Target::Upper, Op::Tilde) => Snap::Upwards,
-            (Target::Upper, Op::Equals) => Snap::Downwards,
+        let snap_out = match p.op {
+            Op::Equals => false,
+            Op::Tilde => true,
         };
-        Ok(Box::new(DataTarget { name, val, snap: Some(snap) }))
+        let snap_upwards = match t {
+            Target::Lower => !snap_out,
+            Target::Upper => snap_out,
+        };
+        let snap_downwards = !snap_upwards;
+        Ok(DataTarget { name, val, snap_downwards, snap_upwards })
     }
 }
 

@@ -1,22 +1,18 @@
 use std::cmp::Ordering;
 
-#[derive(Clone)]
-pub enum Snap {
-    Downwards,
-    Upwards,
-}
-
+/// Result of comparing a value against a target.
 pub enum FindOrdering {
-    // The target is greater than the candidate value that it was compared against.
+    /// Indicates that the target is greater than the candidate value that it was compared against.
     ValBelowTarget {
         /// Determines whether the non-matching value should be stored as a preliminary result.
         is_valid_res: bool,
     },
-    // The target is less than the candidate value that it was compared against.
+    /// Indicates that the target is less than the candidate value that it was compared against.
     ValAboveTarget {
         /// Determines whether the non-matching value should be stored as a preliminary result.
         is_valid_res: bool,
     },
+    /// Indicates that the target is neither above nor below the value.
     ValMatchesTarget,
 }
 
@@ -24,7 +20,7 @@ pub trait FindOrd<T, E> {
     fn cmp(&self, t: &T) -> Result<FindOrdering, E>;
 }
 
-/// Let all PartialOrd types (of self) trivially implement FindOrd.
+/// Let all [`PartialOrd`] types (of self) trivially implement [`FindOrd`].
 impl<T: PartialOrd<T>, E> FindOrd<T, E> for T {
     fn cmp(&self, t: &T) -> Result<FindOrdering, E> {
         Ok(
@@ -44,7 +40,7 @@ pub struct Element<T> {
 }
 
 /// Result of searching for a value within the specified limits.
-/// The bounds of the range defined by the limits are well defined even if no value was found:
+/// The bounds of the range defined by the limits are well-defined even if no value was found:
 /// In that case, the bounds are defined by a single value(?).
 #[derive(Debug)]
 pub struct FindResult<T> {
@@ -57,6 +53,7 @@ pub struct FindResult<T> {
 }
 
 // TODO: Generify the index type (should be 'usize' for arrays).
+// TODO: Use custom error type? That would allow us to include the index if 'cmp' failed.
 pub fn find<T, E>(
     lookup: &impl Fn(i64) -> Result<T, E>,
     target: &dyn FindOrd<T, E>,
