@@ -5,8 +5,10 @@ use crate::find::{FindOrd, FindOrdering};
 ///
 /// That is, the comparison result is defined as "lesser" if the value is below *all* targets
 /// and "greater" if the value is above *any* target.
-///
 /// This is the opposite of [FindOrdCombineUpper] which compares against the "uppermost" target.
+///
+/// This corresponds to logical AND ("all") of the target conditions when used as lower limit ("from")
+/// and OR ("any") when used as the upper limit ("to").
 ///
 /// The `is_valid_res` fields of the individual comparison results are ignored
 /// because combining them correctly in all cases is non-trivial at best.
@@ -56,8 +58,10 @@ impl<T, E> FindOrd<T, E> for FindOrdCombineLower<T, E> {
 ///
 /// That is, the comparison result is defined as "lesser" if the value is below *any* target
 /// and "greater" if the value is above *all* targets.
-///
 /// This is the opposite of [FindOrdCombineLower] which compares against the "lowermost" target.
+///
+/// This corresponds to logical OR ("any") of the target conditions when used as lower limit ("from")
+/// and AND ("all") when used as the upper limit ("to").
 ///
 /// The `is_valid_res` fields of the individual comparison results are ignored
 /// because combining them correctly in all cases is non-trivial at best.
