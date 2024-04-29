@@ -27,6 +27,7 @@ pub fn find_range<T, E>(
     lower_idx: i64, // inclusive
     upper_idx: i64, // inclusive
 ) -> Result<(Option<Element<T>>, Option<Element<T>>), E> {
+    // println!("find in range {}-{}", lower_idx, upper_idx);
     let FindResult { element, last_lower_idx, last_upper_idx } = find(
         lookup,
         &FindOrdRange { lower: lower_target, upper: upper_target },
@@ -39,6 +40,7 @@ pub fn find_range<T, E>(
         // TODO: If we didn't erase 'is_valid_res' and kept both last upper- and lower valid result,
         //       then we'd have the final result right away in this case?!?
         None => (last_upper_idx, last_lower_idx),
+        // TODO: Isn't '(idx, idx-1)' sufficient? The range is extended below anyway and we found the value without snapping.
         Some(Element { idx, .. }) => (idx, idx),
     };
     // Possible optimization: If we can determine that the targets aren't using outwards snapping,

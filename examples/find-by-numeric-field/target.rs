@@ -38,7 +38,7 @@ impl FindOrd<Data, Error> for DataTarget {
                 } else {
                     FindOrdering::ValMatchesTarget
                 }
-            ),
+            )
         }
     }
 }
@@ -60,6 +60,7 @@ impl DataTarget {
     }
 }
 
+#[derive(Clone)]
 pub enum Target {
     Lower,
     Upper,
