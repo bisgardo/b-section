@@ -31,7 +31,6 @@ fn parse_stdin_records(s: String) -> Result<HashMap<String, f64>> {
         .collect()
 }
 
-
 pub fn new_lookup(datas: &Vec<Data>) -> impl Fn(i64) -> Result<Data> + '_ {
     |idx| {
         if idx < 0 {
