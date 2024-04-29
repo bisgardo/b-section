@@ -35,8 +35,10 @@ pub fn find_range<T, E>(
         upper_idx,
     )?;
     let (lower_upper_idx, upper_lower_idx) = match element {
-        // Element was not found: the lower and upper limits will be on each side of the index where the element would have been (reversed).
-        // It's possible that "snap out" values will be found up/down to this index.
+        // Element was not found: the lower and upper limits will be on each side (reversed) of the index where the element would have been.
+        // It's possible that "snap out" values will be found up to/down from this index.
+        // TODO: If we didn't erase 'is_valid_res' and kept both last upper- and lower valid result,
+        //       then we'd have the final result right away in this case?!?
         None => (last_upper_idx, last_lower_idx),
         // TODO: Isn't '(idx, idx-1)' sufficient? The range is extended below anyway and we found the value without snapping.
         Some(Element { idx, .. }) => (idx, idx),
@@ -48,26 +50,22 @@ pub fn find_range<T, E>(
     // It isn't clear what the implications of using 'idx' from such a value is through.
     // But we can always detect "not found" as 'last_lower_idx > last_upper_idx'.
 
-    // println!("find lower in {}-{}", max(last_lower_idx - 1, lower_idx), lower_upper_idx);
-
-    // Ignoring complications, search for lower target in range ['last_lower_idx'; 'idx'].
-    // The range is extended to ensure that "snap down" values are found.
+    // Search for lower target in range ['last_lower_idx'; 'idx']
+    // (expanded a bit to ensure that "snap down" values are found.)
     let lower_res = find(
         lookup,
         lower_target,
-        max(last_lower_idx - 1, lower_idx), // extend range one down (limited by 'lower_idx') to ensure that any "snap down" value is found
-        lower_upper_idx, // if no element was found in range, this equals 'last_lower_idx' (limited by 'upper_idx')
+        max(last_lower_idx - 1, lower_idx), // expand down by 1 (limited by 'lower_idx') to ensure that any "snap down" value is found
+        lower_upper_idx, // if no element was found in range, this equals 'last_upper_idx'
     )?;
 
-    // println!("find upper in {}-{}", upper_lower_idx, min(last_upper_idx + 1, upper_idx));
-
-    // Ignoring complications, search for lower target in range ['last_lower_idx'; 'idx'].
-    // The range is extended to ensure that "snap down" values are found.
+    // Search for lower target in range ['idx'; 'last_upper_idx']
+    // (expanded a bit to ensure that "snap up" values are found).
     let upper_res = find(
         lookup,
         upper_target,
-        upper_lower_idx, // if no element was found in range, then this equals 'last_upper_idx' (limited by 'lower_idx')
-        min(last_upper_idx + 1, upper_idx), // extend range one up (limited by 'upper_idx') to ensure that any "snap up" value is found
+        upper_lower_idx, // if no element was found in range, then this equals 'last_lower_idx'
+        min(last_upper_idx + 1, upper_idx), // expand up by 1 (limited by 'upper_idx') to ensure that any "snap up" value is found
     )?;
     Ok((lower_res.element, upper_res.element))
 }
@@ -88,11 +86,11 @@ mod tests {
 
     #[test]
     fn full_range() {
-        let arr = [0, 2, 4];
+        let arr = &[0, 2, 4];
         for lt in all_snap_variants(0) {
             for ut in all_snap_variants(4) {
                 assert_matches!(
-                    find_range(&new_lookup(&arr), lt.as_ref(), ut.as_ref(), 0, arr.len() as i64 - 1),
+                    find_range(&new_lookup(arr), lt.as_ref(), ut.as_ref(), 0, arr.len() as i64 - 1),
                     Ok((Some(l), Some(u))) if l.val == 0 && u.val == 4
                 );
             }
@@ -122,7 +120,7 @@ mod tests {
 
     #[test]
     fn matching_single_element() {
-        let arr = [0i64, 2, 4];
+        let arr = [0, 2, 4];
         for v in arr {
             for lt in all_snap_variants(v) {
                 for ut in all_snap_variants(v) {
@@ -235,6 +233,14 @@ mod tests {
             find_range(&new_lookup(arr), &1, &with_snap(1, Snap::Upwards), 0, arr.len() as i64 - 1),
             Ok((None, Some(u))) if u.val == 2
         );
+        assert_matches!(
+            find_range(&new_lookup(arr), &with_snap(1, Snap::Upwards), &with_snap(1, Snap::Downwards), 0, arr.len() as i64 - 1),
+            Ok((None, None))
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &with_snap(1, Snap::Downwards), &with_snap(1, Snap::Upwards), 0, arr.len() as i64 - 1),
+            Ok((Some(l), Some(u))) if l.val == 0 && u.val == 2
+        );
     }
 
     #[test]
@@ -276,6 +282,100 @@ mod tests {
         assert_matches!(
             find_range(&new_lookup(arr), &with_snap(1, Snap::Downwards), &with_snap(1, Snap::Downwards), 0, arr.len() as i64 - 1),
             Ok((Some(l), None)) if l.val == 0
+        );
+    }
+
+    /* REVERSED RANGES */
+
+    #[test]
+    fn reversed_targets_subrange() {
+        let arr = &[0, 1, 2, 3, 4];
+        // The results of queries where the "lower" target is above the "higher" one are undefined,
+        // so the following tests capture the current behavior without necessarily indicating that the behavior is intended:
+        // The results are not too far off, but still pretty weird.
+        // It would be perfectly fine if a future change broke them (they probably should all return empty results).
+        // Including them here ensures that such a change will not happen accidentally.
+        assert_matches!(
+            find_range(&new_lookup(arr), &3, &1, 0, arr.len() as i64 - 1),
+            Ok((None, None))
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &3, &with_snap(1, Snap::Downwards), 0, arr.len() as i64 - 1),
+            Ok((None, None))
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &3, &with_snap(1, Snap::Upwards), 0, arr.len() as i64 - 1),
+            Ok((None, Some(u))) if u.val == 2
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &with_snap(3, Snap::Downwards), &1, 0, arr.len() as i64 - 1),
+            Ok((Some(l), None)) if l.val == 1
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &with_snap(3, Snap::Downwards), &with_snap(1, Snap::Downwards), 0, arr.len() as i64 - 1),
+            Ok((Some(l), None)) if l.val == 1
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &with_snap(3, Snap::Downwards), &with_snap(1, Snap::Upwards), 0, arr.len() as i64 - 1),
+            Ok((Some(l), Some(u))) if l.val == 1 && u.val == 2
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &with_snap(3, Snap::Upwards), &1, 0, arr.len() as i64 - 1),
+            Ok((None, None))
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &with_snap(3, Snap::Upwards), &with_snap(1, Snap::Downwards), 0, arr.len() as i64 - 1),
+            Ok((None, None))
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &with_snap(3, Snap::Upwards), &with_snap(1, Snap::Upwards), 0, arr.len() as i64 - 1),
+            Ok((None, Some(u))) if u.val == 2
+        );
+    }
+
+    #[test]
+    fn reversed_targets_between() {
+        let arr = &[0, 2, 4];
+        // The results of queries where the "lower" target is above the "higher" one are undefined,
+        // so the following tests capture the current behavior without necessarily indicating that the behavior is intended:
+        // The results are not too far off, but still pretty weird.
+        // It would be perfectly fine if a future change broke them (they probably should all return empty results).
+        // Including them here ensures that such a change will not happen accidentally.
+        assert_matches!(
+            find_range(&new_lookup(arr), &3, &1, 0, arr.len() as i64 - 1),
+            Ok((None, None))
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &3, &with_snap(1, Snap::Downwards), 0, arr.len() as i64 - 1),
+            Ok((None, None))
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &3, &with_snap(1, Snap::Upwards), 0, arr.len() as i64 - 1),
+            Ok((None, Some(u))) if u.val == 2
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &with_snap(3, Snap::Downwards), &1, 0, arr.len() as i64 - 1),
+            Ok((Some(l), None)) if l.val == 0
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &with_snap(3, Snap::Downwards), &with_snap(1, Snap::Downwards), 0, arr.len() as i64 - 1),
+            Ok((Some(l), None)) if l.val == 0
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &with_snap(3, Snap::Downwards), &with_snap(1, Snap::Upwards), 0, arr.len() as i64 - 1),
+            Ok((Some(l), Some(u))) if l.val == 0 && u.val == 2
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &with_snap(3, Snap::Upwards), &1, 0, arr.len() as i64 - 1),
+            Ok((None, None))
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &with_snap(3, Snap::Upwards), &with_snap(1, Snap::Downwards), 0, arr.len() as i64 - 1),
+            Ok((None, None))
+        );
+        assert_matches!(
+            find_range(&new_lookup(arr), &with_snap(3, Snap::Upwards), &with_snap(1, Snap::Upwards), 0, arr.len() as i64 - 1),
+            Ok((None, Some(u))) if u.val == 2
         );
     }
 

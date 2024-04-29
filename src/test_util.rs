@@ -2,7 +2,6 @@
 pub mod helpers {
     use crate::find::{FindOrd, FindOrdering};
 
-    #[derive(Clone)]
     pub enum Snap {
         Downwards,
         Upwards,
