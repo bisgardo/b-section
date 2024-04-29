@@ -378,6 +378,4 @@ mod tests {
             Ok((None, Some(u))) if u.val == 2
         );
     }
-
-    // TODO: Add test where lower/upper targets are swapped. They should not find any results...
 }

@@ -121,34 +121,17 @@ fn main() -> Result<()> {
 
     // Run bisection.
     let (lower, upper) = match (lower_target, upper_target) {
-        (Some(lt), Some(ut)) =>
-            find_range(
-                &new_lookup(&datas),
-                &lt,
-                &ut,
-                0,
-                datas.len() as i64 - 1,
-            )?,
-        (Some(t), None) =>
-            (
-                find(
-                    &new_lookup(&datas),
-                    &t,
-                    0,
-                    datas.len() as i64 - 1,
-                )?.element,
-                None,
-            ),
-        (None, Some(t)) =>
-            (
-                None,
-                find(
-                    &new_lookup(&datas),
-                    &t,
-                    0,
-                    datas.len() as i64 - 1,
-                )?.element,
-            ),
+        (Some(lt), Some(ut)) => {
+            find_range(&new_lookup(&datas), &lt, &ut, 0, datas.len() as i64 - 1)?
+        }
+        (Some(t), None) => (
+            find(&new_lookup(&datas), &t, 0, datas.len() as i64 - 1)?.element,
+            None,
+        ),
+        (None, Some(t)) => (
+            None,
+            find(&new_lookup(&datas), &t, 0, datas.len() as i64 - 1)?.element,
+        ),
         (None, None) => (None, None),
     };
 

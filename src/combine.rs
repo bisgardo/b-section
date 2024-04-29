@@ -155,7 +155,7 @@ mod tests {
                 Box::new(Target { field: Field::B, val: 2.0 }), // b >= 2.0
             ],
             snap_downwards: false, // ignored
-            snap_upwards: true, // ignored
+            snap_upwards: true,    // ignored
         };
 
         let and2 = FindOrdCombineUpper {
@@ -164,7 +164,7 @@ mod tests {
                 Box::new(Target { field: Field::B, val: 4.0 }), // b >= 4.1
             ],
             snap_downwards: false, // ignored
-            snap_upwards: true, // ignored
+            snap_upwards: true,    // ignored
         };
 
         let and1_or_and2 = FindOrdCombineLower {
@@ -199,7 +199,7 @@ mod tests {
                 Box::new(Target { field: Field::B, val: 2.0 }), // b >= 2.0
             ],
             snap_downwards: false, // ignored
-            snap_upwards: true, // ignored
+            snap_upwards: true,    // ignored
         };
 
         let or2 = FindOrdCombineLower {
@@ -208,7 +208,7 @@ mod tests {
                 Box::new(Target { field: Field::B, val: 4.0 }), // b >= 4.1
             ],
             snap_downwards: false, // ignored
-            snap_upwards: true, // ignored
+            snap_upwards: true,    // ignored
         };
 
         let or1_and_or2 = FindOrdCombineUpper {
